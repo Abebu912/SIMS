@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AI Learning Helper - SIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-lg">
+        <div class="card-header bg-success text-white">
+            <h4 class="card-title mb-0">
+                <i class="fas fa-robot me-2"></i>My Learning Helper
+            </h4>
+            <p class="mb-0 mt-2">Hi there! I'm here to help you with homework and learning!</p>
+        </div>
+        <div class="card-body">
+            <div class="chat-container" id="chatContainer" style="height: 400px; border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin-bottom: 20px; overflow-y: auto; background-color: #f9f9f9;">
+                <div class="message ai-message" style="margin: 10px 0; padding: 10px; border-radius: 10px; max-width: 80%; background-color: #f1f8e9; margin-right: auto;">
+                    <strong>Helper:</strong> Hi! I'm your learning helper! I can help with homework, suggest fun activities, or answer questions about your subjects. What would you like help with today?
+                </div>
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="message {% if message.is_user %}user-message{% else %}ai-message{% endif %}" style="margin: 10px 0; padding: 10px; border-radius: 10px; max-width: 80%; {% if message.is_user %}background-color: #e3f2fd; margin-left: auto; text-align: right;{% else %}background-color: #f1f8e9; margin-right: auto;{% endif %}">
+                        <strong>{% if message.is_user %}You{% else %}Helper{% endif %}:</strong> {{ message.content|linebreaks }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <form method="post" id="aiForm" action="{% url 'interact_with_ai' %}">
+                {% csrf_token %}
+                <div class="input-container d-flex gap-2">
+                    <input type="text" class="form-control" id="messageInput" name="message" placeholder="Type your question here..." required style="border: 2px solid #4CAF50; border-radius: 20px; padding: 10px; font-size: 16px;">
+                    <button type="submit" class="btn btn-success" style="border-radius: 20px; padding: 10px 20px;">Send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleKeyPress(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            document.getElementById('aiForm').submit();
+        }
+    }
+    
+    // Auto-scroll to bottom on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('chatContainer');
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    });
+</script>
+{% endblock %}

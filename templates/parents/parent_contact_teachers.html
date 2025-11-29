@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Teachers - SIMS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Contact Teachers</h1>
+    {% if teachers %}
+    <div class="list-group">
+        {% for t in teachers %}
+        <div class="list-group-item">
+            <h5>{{ t.user.get_full_name }}</h5>
+            <p>Teaches children: 
+                {% for c in t.children %}
+                    {{ c.get_full_name }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            <a href="{% url 'message_teacher' t.user.id %}" class="btn btn-sm btn-primary">Message</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No teachers found for your children.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Performance Reports{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Performance Reports</h2>
+  <form method="get" class="mb-3">
+    <label for="subject">Select subject:</label>
+    <select id="subject" name="subject_id" onchange="this.form.submit()">
+      <option value="">--Select--</option>
+      {% for c in teacher_subjects %}
+      <option value="{{ c.id }}" {% if selected_subject and selected_subject.id == c.id %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if selected_subject %}
+  <h4>Report for {{ selected_subject.name }}</h4>
+  <p>Average score: {{ avg_score }}</p>
+  <h5>Distribution</h5>
+  <ul>
+    {% for k, v in score_distribution.items %}
+    <li>{{ k }}: {{ v }}</li>
+    {% endfor %}
+  </ul>
+
+  <h5>Student Ranking</h5>
+  {% if subject_ranking %}
+  <table class="table">
+    <thead><tr><th>Rank</th><th>Student</th><th>Score</th></tr></thead>
+    <tbody>
+      {% for student, score, rank in subject_ranking %}
+      <tr>
+        <td>{{ rank }}</td>
+        <td>{{ student.get_full_name }}</td>
+        <td>{{ score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No scored students yet.</p>
+  {% endif %}
+  {% else %}
+    <p>Select a subject to view performance.</p>
+  {% endif %}
+</div>
+{% endblock %}

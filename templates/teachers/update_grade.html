@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Update Student Grade{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Update Score for {{ enrollment.student.get_full_name }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Subject</label>
+      <div>{{ enrollment.subject.code }} - {{ enrollment.subject.name }}</div>
+    </div>
+
+    <div class="mb-3">
+      <label for="id_score" class="form-label">Score (0-100)</label>
+      {{ form.score }}
+    </div>
+
+    <div class="mb-3">
+      <label for="id_remarks" class="form-label">Remarks</label>
+      {{ form.remarks }}
+    </div>
+
+    <button class="btn btn-primary" type="submit">Save</button>
+    <a class="btn btn-secondary" href="{% url 'enter_grades' %}?subject_id={{ enrollment.subject.id }}">Back</a>
+  </form>
+</div>
+{% endblock %}

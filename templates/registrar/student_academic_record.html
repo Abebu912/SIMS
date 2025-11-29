@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>{{ student.get_full_name }}</h2>
+  <p>
+    Student ID: {{ student.studentprofile.student_id }}
+    • Grade: {{ student.studentprofile.grade_level }}
+    • Result Average:
+    {% if result_average %}
+      {{ result_average }} / 100
+    {% else %}
+      N/A
+    {% endif %}
+    {% if class_rank %}
+      • Class Rank: #{{ class_rank }}
+    {% endif %}
+  </p>
+
+  <div class="card">
+    <div class="card-header">
+      <strong>Academic Record</strong>
+      <a href="{% url 'generate_transcript' student.id %}" class="btn btn-sm btn-primary float-end">Generate Transcript</a>
+    </div>
+    <div class="card-body">
+      {% if enrollments %}
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Year / Term</th>
+              <th>Subject</th>
+              <th>Result (out of 100)</th>
+              <th>Teacher</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in enrollments %}
+            <tr>
+              <td>{{ e.academic_year }} • {{ e.get_semester_display }}</td>
+              <td>{{ e.subject.name }}</td>
+              <td>
+                {% if e.result_score is not None %}
+                  <strong>{{ e.result_score|floatformat:0 }}</strong>
+                {% elif e.result %}
+                  <strong>{{ e.result }}</strong>
+                {% else %}
+                  <span class="text-muted">Not graded</span>
+                {% endif %}
+              </td>
+              <td>{% if e.subject.instructor %}{{ e.subject.instructor.user.get_full_name }}{% else %}TBA{% endif %}</td>
+              <td>
+                <form method="post" action="{% url 'update_grade' e.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="number" name="final_grade" placeholder="Score (0-100)" min="0" max="100" step="0.1" style="width:130px" />
+                  <button class="btn btn-sm btn-success">Update</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light">
+              <th colspan="2">Total Result</th>
+              <th>
+                {% if result_total %}
+                  {{ result_total|floatformat:0 }}
+                {% else %}
+                  0
+                {% endif %}
+              </th>
+              <th colspan="2"></th>
+            </tr>
+            <tr class="table-light">
+              <th colspan="2">Average Result</th>
+              <th>
+                {% if result_average %}
+                  {{ result_average }} / 100
+                {% else %}
+                  N/A
+                {% endif %}
+              </th>
+              <th colspan="2">
+                {% if class_rank %}
+                  Class Rank: #{{ class_rank }}
+                {% else %}
+                  Class Rank: N/A
+                {% endif %}
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      {% else %}
+        <p>This student has no recorded enrollments.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <a href="{% url 'manage_academic_records' %}" class="btn btn-secondary mt-3">Back to Academic Records</a>
+</div>
+{% endblock %}

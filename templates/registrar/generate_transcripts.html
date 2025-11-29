@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate Transcripts - SIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h3>Generate Transcripts</h3>
+
+  <form method="GET" class="row g-3 mb-4">
+    <!-- Filter Section -->
+    <div class="col-md-3">
+      <label for="grade_level" class="form-label">Grade Level</label>
+      <select id="grade_level" name="grade_level" class="form-select">
+        <option value="">All Grades</option>
+        {% for grade in grade_levels %}
+          <option value="{{ grade }}" {% if current_filters.grade_level == grade|stringformat:"i" %}selected{% endif %}>
+            Grade {{ grade }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="academic_year" class="form-label">Academic Year</label>
+      <select id="academic_year" name="academic_year" class="form-select">
+        <option value="">All Years</option>
+        {% for year in academic_years %}
+          <option value="{{ year }}" {% if current_filters.academic_year == year %}selected{% endif %}>
+            {{ year }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="semester" class="form-label">Semester</label>
+      <select id="semester" name="semester" class="form-select">
+        <option value="">All Semesters</option>
+        <option value="first" {% if current_filters.semester == 'first' %}selected{% endif %}>First Semester</option>
+        <option value="second" {% if current_filters.semester == 'second' %}selected{% endif %}>Second Semester</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button type="submit" name="filter" class="btn btn-secondary w-100">Filter</button>
+    </div>
+    
+    <!-- Student Selection Section -->
+    <div class="col-md-6">
+      <label for="student_id" class="form-label">Select Student</label>
+      <select id="student_id" name="student_id" class="form-select">
+        <option value="">-- Select student --</option>
+        {% for s in students %}
+          <option value="{{ s.id }}" {% if selected_student and selected_student.id == s.id %}selected{% endif %}>
+            {{ s.get_full_name|default:s.username }} ({{ s.studentprofile.student_id|default:'-' }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary">Show</button>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      {% if selected_student %}
+        <a href="?grade_level={{ current_filters.grade_level }}&academic_year={{ current_filters.academic_year }}&semester={{ current_filters.semester }}&student_id={{ selected_student.id }}&format=pdf" class="btn btn-danger me-2">Download PDF</a>
+        <a href="?grade_level={{ current_filters.grade_level }}&academic_year={{ current_filters.academic_year }}&semester={{ current_filters.semester }}&student_id={{ selected_student.id }}&format=csv" class="btn btn-secondary">Download CSV</a>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if grades %}
+    <div class="card">
+      <div class="card-body">
+          <h5>Ranks for {{ selected_student.get_full_name|default:selected_student.username }}</h5>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th class="text-center">Result (out of 100)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in grades %}
+              <tr>
+                <td>{{ g.subject.name }}</td>
+                <td class="text-center">
+                  {% if g.score is not None %}
+                    {{ g.score|floatformat:0 }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="card mt-3">
+      <div class="card-body">
+        <table class="table table-bordered">
+          <tbody>
+            <tr class="table-light">
+              <th style="width: 200px;">Total Result</th>
+              <td class="text-center">
+                {% if total_result %}
+                  <strong>{{ total_result|floatformat:0 }}</strong>
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+            </tr>
+            <tr class="table-light">
+              <th>Average Result</th>
+              <td class="text-center">
+                {% if numeric_average %}
+                  <strong>{{ numeric_average|floatformat:1 }} / 100</strong>
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+            </tr>
+            <tr class="table-light">
+              <th>Class Rank</th>
+              <td class="text-center">
+                {% if student_rank %}
+                  <strong>#{{ student_rank }}</strong>
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="text-muted">No grades to show for the selected student.</div>
+  {% endif %}
+</div>
+{% endblock %}

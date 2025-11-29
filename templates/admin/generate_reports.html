@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate Reports - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-info text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Generate Reports
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Quick Actions -->
+                    <div class="d-flex justify-content-between mb-4">
+                        <a href="{% url 'admin_panel' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Admin Panel
+                        </a>
+                        <button type="button" class="btn btn-success" onclick="generateAllReports()">
+                            <i class="fas fa-file-download me-2"></i>Generate All Reports
+                        </button>
+                    </div>
+
+                    <!-- Report Selection Cards -->
+                    <div class="row">
+                        <!-- User Reports -->
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-users me-2"></i>User Reports
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Generate comprehensive reports about system users.</p>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-primary btn-sm w-100 text-start" onclick="generateReport('user_breakdown')">
+                                                <i class="fas fa-chart-pie me-2"></i>User Role Breakdown
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-primary btn-sm w-100 text-start" onclick="generateReport('registration_trends')">
+                                                <i class="fas fa-chart-line me-2"></i>Registration Trends
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-primary btn-sm w-100 text-start" onclick="generateReport('user_activity')">
+                                                <i class="fas fa-user-clock me-2"></i>User Activity Report
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="btn btn-outline-primary btn-sm w-100 text-start" onclick="generateReport('pending_approvals')">
+                                                <i class="fas fa-clock me-2"></i>Pending Approvals List
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Reports -->
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-graduation-cap me-2"></i>Academic Reports
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Academic performance and course-related reports.</p>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-success btn-sm w-100 text-start" onclick="generateReport('student_performance')">
+                                                <i class="fas fa-chart-bar me-2"></i>Student Performance
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-success btn-sm w-100 text-start" onclick="generateReport('course_enrollment')">
+                                                <i class="fas fa-book me-2"></i>Course Enrollment
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-success btn-sm w-100 text-start" onclick="generateReport('grade_distribution')">
+                                                <i class="fas fa-percentage me-2"></i>Grade Distribution
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="btn btn-outline-success btn-sm w-100 text-start" onclick="generateReport('attendance_summary')">
+                                                <i class="fas fa-calendar-check me-2"></i>Attendance Summary
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Reports -->
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-warning text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-money-bill-wave me-2"></i>Financial Reports
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Fee collection and financial overview reports.</p>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-warning btn-sm w-100 text-start" onclick="generateReport('fee_collection')">
+                                                <i class="fas fa-receipt me-2"></i>Fee Collection Report
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-warning btn-sm w-100 text-start" onclick="generateReport('outstanding_fees')">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Outstanding Fees
+                                            </button>
+                                        </li>
+                                        <li class="mb-2">
+                                            <button class="btn btn-outline-warning btn-sm w-100 text-start" onclick="generateReport('payment_trends')">
+                                                <i class="fas fa-chart-line me-2"></i>Payment Trends
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="btn btn-outline-warning btn-sm w-100 text-start" onclick="generateReport('revenue_summary')">
+                                                <i class="fas fa-chart-pie me-2"></i>Revenue Summary
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Report Parameters -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-filter me-2"></i>Report Parameters
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="report_date_from" class="form-label">Date From</label>
+                                        <input type="date" class="form-control" id="report_date_from">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="report_date_to" class="form-label">Date To</label>
+                                        <input type="date" class="form-control" id="report_date_to">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="report_format" class="form-label">Format</label>
+                                        <select class="form-control" id="report_format">
+                                            <option value="pdf">PDF Document</option>
+                                            <option value="excel">Excel Spreadsheet</option>
+                                            <option value="csv">CSV File</option>
+                                            <option value="html">Web Page</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Reports -->
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-history me-2"></i>Recently Generated Reports
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Report Name</th>
+                                            <th>Generated On</th>
+                                            <th>Format</th>
+                                            <th>Size</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>User Role Breakdown</td>
+                                            <td>Nov 15, 2025 14:30</td>
+                                            <td><span class="badge bg-danger">PDF</span></td>
+                                            <td>2.4 MB</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Student Performance</td>
+                                            <td>Nov 14, 2025 10:15</td>
+                                            <td><span class="badge bg-success">Excel</span></td>
+                                            <td>1.8 MB</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Fee Collection Report</td>
+                                            <td>Nov 12, 2025 16:45</td>
+                                            <td><span class="badge bg-info">CSV</span></td>
+                                            <td>0.9 MB</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Report Preview Area -->
+                    <div class="card mt-4" id="reportPreview" style="display: none;">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-eye me-2"></i>Report Preview
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="previewContent" class="text-center">
+                                <!-- Preview content will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateReport(reportType) {
+    const dateFrom = document.getElementById('report_date_from').value;
+    const dateTo = document.getElementById('report_date_to').value;
+    const format = document.getElementById('report_format').value;
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+    button.disabled = true;
+    
+    // Simulate report generation
+    setTimeout(() => {
+        // Show success message
+        alert(`Report generated successfully!\nType: ${reportType}\nFormat: ${format}\nDate Range: ${dateFrom || 'All'} to ${dateTo || 'All'}`);
+        
+        // Reset button
+        button.innerHTML = originalText;
+        button.disabled = false;
+        
+        // Show preview
+        showReportPreview(reportType);
+        
+        // Add to recent reports (in a real app, this would be server-side)
+        addToRecentReports(reportType, format);
+        
+    }, 2000);
+}
+
+function generateAllReports() {
+    if (confirm('Generate all available reports? This may take a few minutes.')) {
+        // Show loading for all reports
+        const buttons = document.querySelectorAll('button[onclick^="generateReport"]');
+        buttons.forEach(button => {
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+            button.disabled = true;
+        });
+        
+        setTimeout(() => {
+            alert('All reports generated successfully!');
+            buttons.forEach(button => {
+                button.innerHTML = button.getAttribute('onclick').includes('user_breakdown') ? 
+                    '<i class="fas fa-chart-pie me-2"></i>User Role Breakdown' :
+                    button.innerHTML;
+                button.disabled = false;
+            });
+        }, 3000);
+    }
+}
+
+function showReportPreview(reportType) {
+    const preview = document.getElementById('reportPreview');
+    const content = document.getElementById('previewContent');
+    
+    const previews = {
+        'user_breakdown': '<h5>User Role Breakdown Report</h5><p>This report shows the distribution of users across different roles in the system.</p><div class="text-muted">[Chart preview would appear here]</div>',
+        'student_performance': '<h5>Student Performance Report</h5><p>Academic performance analysis across courses and semesters.</p><div class="text-muted">[Grade distribution chart would appear here]</div>',
+        'fee_collection': '<h5>Fee Collection Report</h5><p>Overview of fee payments and outstanding balances.</p><div class="text-muted">[Financial summary would appear here]</div>'
+    };
+    
+    content.innerHTML = previews[reportType] || '<h5>Report Preview</h5><p>Preview not available for this report type.</p>';
+    preview.style.display = 'block';
+}
+
+function addToRecentReports(reportType, format) {
+    // In a real application, this would be handled server-side
+    console.log(`Added ${reportType} in ${format} format to recent reports`);
+}
+
+// Set default dates
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    document.getElementById('report_date_from').value = firstDay;
+    document.getElementById('report_date_to').value = today;
+});
+</script>
+
+<style>
+.card {
+    border-radius: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.btn {
+    border-radius: 0.375rem;
+}
+
+.badge {
+    font-size: 0.7em;
+}
+</style>
+{% endblock %}

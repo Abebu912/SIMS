@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Request Link Child - SIMS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Request to Link a Child</h1>
+    <p>Fill in the information below to request that the school links the child to your parent account.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Child identifier (ID, admission no or email)</label>
+            {{ form.child_identifier }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Relationship</label>
+            {{ form.relationship }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Message</label>
+            {{ form.message }}
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Request</button>
+        <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+<!-- templates/students/complete_profile.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Complete Your Profile - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-user-graduate me-2"></i>Complete Your Student Profile
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Profile Required:</strong> You need to complete your student profile before you can register for subjects.
+                    </div>
+                    
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="student_id" class="form-label">Student ID *</label>
+                                <input type="text" class="form-control" id="student_id" name="student_id" 
+                                       required placeholder="e.g., STU001">
+                                <small class="form-text text-muted">Your unique student identification number</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="grade_level" class="form-label">Grade Level *</label>
+                                <select class="form-select" id="grade_level" name="grade_level" required>
+                                    <option value="">Select Grade</option>
+                                    <option value="1">Grade 1</option>
+                                    <option value="2">Grade 2</option>
+                                    <option value="3">Grade 3</option>
+                                    <option value="4">Grade 4</option>
+                                    <option value="5">Grade 5</option>
+                                    <option value="6">Grade 6</option>
+                                    <option value="7">Grade 7</option>
+                                    <option value="8">Grade 8</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="academic_year" class="form-label">Academic Year *</label>
+                                <input type="text" class="form-control" id="academic_year" name="academic_year" 
+                                       value="{{ academic_year }}" required placeholder="YYYY-YYYY">
+                                <small class="form-text text-muted">Format: YYYY-YYYY (e.g., 2024-2025)</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="current_semester" class="form-label">Current Semester *</label>
+                                <select class="form-select" id="current_semester" name="current_semester" required>
+                                    <option value="first">First Semester</option>
+                                    <option value="second">Second Semester</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" id="date_of_birth" name="date_of_birth">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="phone_number" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                       placeholder="e.g., +1234567890">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="3" 
+                                      placeholder="Enter your address"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save me-2"></i>Complete Profile & Continue
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

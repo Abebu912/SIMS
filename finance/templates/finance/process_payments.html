@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Payments{% endblock %}
+
+{% block content %}
+<h1>Process Payments</h1>
+<form method="post">{% csrf_token %}
+<table class="table">
+  <thead><tr><th>Student</th><th>Fee</th><th>Amount</th><th>Action</th></tr></thead>
+  <tbody>
+  {% for p in pending_payments %}
+    <tr>
+      <td>{{ p.student }}</td>
+      <td>{{ p.fee_structure.name }}</td>
+      <td>{{ p.amount_paid }}</td>
+      <td>
+        <button name="action" value="approve" formaction="" formmethod="post">Approve</button>
+        <button name="action" value="reject" formaction="" formmethod="post">Reject</button>
+        <input type="hidden" name="payment_id" value="{{ p.id }}" />
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">No pending payments</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</form>
+{% endblock %}

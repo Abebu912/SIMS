@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Panel - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-cog me-2"></i>Admin Panel
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Quick Stats -->
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-primary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Users</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_users }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-warning shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Approvals</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.pending_approvals }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-info shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Subjects</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_subjects }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-book fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-success shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Students</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.active_students }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin Actions -->
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title"><i class="fas fa-tools me-2"></i>User Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-users-cog me-2"></i>Manage All Users
+                                        </a>
+                                        <a href="{% url 'add_user' %}" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-user-plus me-2"></i>Add New User
+                                        </a>
+                                        <a href="#" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-user-check me-2"></i>Approve Pending Users
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title"><i class="fas fa-chart-bar me-2"></i>System Tools</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        <a href="{% url 'generate_reports' %}" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-chart-pie me-2"></i>Generate Reports
+                                        </a>
+                                        <a href="{% url 'system_settings' %}" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-sliders-h me-2"></i>System Settings
+                                        </a>
+                                        <a href="{% url 'post_announcement' %}" class="list-group-item list-group-item-action">
+                                            <i class="fas fa-bullhorn me-2"></i>Post Announcement
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Approvals -->
+                    {% if pending_users %}
+                    <div class="card mt-4">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-clock me-2"></i>Pending User Approvals ({{ pending_users.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Name</th>
+                                            <th>Role</th>
+                                            <th>Date Registered</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user in pending_users %}
+                                        <tr>
+                                            <td>{{ user.username }}</td>
+                                            <td>{{ user.get_full_name|default:"-" }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+                                            </td>
+                                            <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                                            <td>
+                                                <a href="{% url 'manage_users' %}" class="btn btn-sm btn-success">Manage</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- In admin/admin_panel.html -->
+<a href="{% url 'system_settings' %}" class="list-group-item list-group-item-action">
+    <i class="fas fa-sliders-h me-2"></i>System Settings
+</a>
+<!-- In admin/admin_panel.html -->
+<a href="{% url 'generate_reports' %}" class="list-group-item list-group-item-action">
+    <i class="fas fa-chart-bar me-2"></i>Generate Reports
+</a>
+{% endblock %}

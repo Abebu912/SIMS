@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Schedule - {{ child.get_full_name|default:child.username }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h3>Schedule for {{ child.get_full_name|default:child.username }}</h3>
+  <p>Relationship: {{ relationship }}</p>
+
+  {% if enrollments and enrollments.count > 0 %}
+    <div class="list-group">
+      {% for en in enrollments %}
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between">
+          <div>
+            <strong>{{ en.subject.code }} - {{ en.subject.name }}</strong>
+            <div class="text-muted">Grade: {{ en.subject.grade_level }} • Instructor: {{ en.subject.instructor.user.get_full_name|default:'TBA' }}</div>
+          </div>
+          <div>
+            <small class="text-muted">Sessions/week: {{ en.subject.sessions_per_week|default:en.subject.sessions_per_week }}</small>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">No scheduled courses found for this child.</div>
+  {% endif %}
+
+  <a href="{% url 'contact_teachers' child.id %}" class="btn btn-primary mt-3">Contact Child's Teachers</a>
+  <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+</div>
+{% endblock %}

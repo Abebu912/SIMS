@@ -1,0 +1,178 @@
+<!-- templates/registrar/approve_registrations.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Approve Registrations - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-clipboard-check me-2"></i>Approve Student Registrations
+                    </h4>
+                    <div>
+                        <span class="badge bg-light text-dark">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ stats.pending }} Pending
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-0">{{ stats.pending }}</h3>
+                                    <p class="mb-0">Pending Approvals</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-0">{{ stats.approved }}</h3>
+                                    <p class="mb-0">Approved Registrations</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-0">{{ stats.total_students }}</h3>
+                                    <p class="mb-0">Total Students</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if pending_enrollments %}
+                    <form method="POST" action="{% url 'bulk_approve_registrations' %}" id="bulk-approve-form">
+                        {% csrf_token %}
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="50px">
+                                            <input type="checkbox" id="select-all">
+                                        </th>
+                                        <th>Student</th>
+                                        <th>Subject</th>
+                                        <th>Grade</th>
+                                        <th>Credits</th>
+                                        <th>Schedule</th>
+                                        <th>Enrolled Date</th>
+                                        <th>Capacity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for enrollment in pending_enrollments %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" name="enrollment_ids" value="{{ enrollment.id }}" class="enrollment-checkbox">
+                                        </td>
+                                        <td>
+                                            <strong>{{ enrollment.student.get_full_name|default:enrollment.student.username }}</strong>
+                                            <br><small class="text-muted">{{ enrollment.student.username }}</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ enrollment.subject.code }}</strong>
+                                            <br>{{ enrollment.subject.name }}
+                                        </td>
+                                        <td>Grade {{ enrollment.subject.grade_level }}</td>
+                                        <td>{{ enrollment.subject.credit_hours }}</td>
+                                        <td>{{ enrollment.subject.schedule_display }}</td>
+                                        <td>{{ enrollment.enrolled_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            <span class="badge {% if enrollment.current_count < enrollment.subject.max_capacity %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ enrollment.current_count }}/{{ enrollment.subject.max_capacity }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <form method="POST" action="{% url 'approve_single_registration' enrollment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success btn-sm" 
+                                                            {% if enrollment.current_count >= enrollment.subject.max_capacity %}disabled{% endif %}>
+                                                        <i class="fas fa-check"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{% url 'reject_single_registration' enrollment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reject this registration?')">
+                                                        <i class="fas fa-times"></i> Reject
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Bulk Actions -->
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check-double me-2"></i>Approve Selected
+                            </button>
+                            <span class="ms-2 text-muted">
+                                <span id="selected-count">0</span> selected
+                            </span>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h4 class="text-success">No Pending Approvals</h4>
+                        <p class="text-muted">All registration requests have been processed.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all functionality
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.enrollment-checkbox');
+    const selectedCount = document.getElementById('selected-count');
+    
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        updateSelectedCount();
+    });
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.enrollment-checkbox:checked').length;
+        selectedCount.textContent = selected;
+    }
+    
+    // Initialize
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

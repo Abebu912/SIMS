@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Post Announcement - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-bullhorn me-2"></i>Post Announcement
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Quick Actions -->
+                    <div class="d-flex justify-content-between mb-4">
+                        <a href="{% url 'admin_panel' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Admin Panel
+                        </a>
+                        <button type="button" class="btn btn-info" onclick="previewAnnouncement()">
+                            <i class="fas fa-eye me-2"></i>Preview Announcement
+                        </button>
+                    </div>
+
+                    <!-- Announcement Form -->
+                    <form method="post" id="announcementForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Announcement Details -->
+                            <div class="col-lg-8">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-edit me-2"></i>Announcement Details
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="announcement_title" class="form-label">Title *</label>
+                                            <input type="text" class="form-control" id="announcement_title" name="title" 
+                                                   placeholder="Enter announcement title" required maxlength="200">
+                                            <div class="form-text">A clear and concise title for your announcement.</div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="announcement_content" class="form-label">Content *</label>
+                                            <textarea class="form-control" id="announcement_content" name="content" 
+                                                      rows="8" placeholder="Enter announcement content..." required></textarea>
+                                            <div class="form-text">
+                                                You can use basic HTML tags for formatting. Maximum 5000 characters.
+                                                <span id="charCount" class="float-end">0/5000</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="announcement_priority" class="form-label">Priority</label>
+                                            <select class="form-control" id="announcement_priority" name="priority">
+                                                <option value="low">Low (Normal)</option>
+                                                <option value="medium" selected>Medium (Important)</option>
+                                                <option value="high">High (Urgent)</option>
+                                                <option value="critical">Critical (Emergency)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Audience & Settings -->
+                            <div class="col-lg-4">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-users me-2"></i>Audience & Settings
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Target Audience *</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="target_all" name="target_roles" value="all" checked>
+                                                <label class="form-check-label" for="target_all">
+                                                    All Users
+                                                </label>
+                                            </div>
+                                            <hr class="my-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_students" name="target_roles" value="student">
+                                                <label class="form-check-label" for="target_students">
+                                                    Students
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_teachers" name="target_roles" value="teacher">
+                                                <label class="form-check-label" for="target_teachers">
+                                                    Teachers
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_parents" name="target_roles" value="parent">
+                                                <label class="form-check-label" for="target_parents">
+                                                    Parents
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_admin" name="target_roles" value="admin">
+                                                <label class="form-check-label" for="target_admin">
+                                                    Administrators
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_registrar" name="target_roles" value="registrar">
+                                                <label class="form-check-label" for="target_registrar">
+                                                    Registrar
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input role-checkbox" type="checkbox" id="target_finance" name="target_roles" value="finance">
+                                                <label class="form-check-label" for="target_finance">
+                                                    Finance
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="announcement_expiry" class="form-label">Expiry Date</label>
+                                            <input type="date" class="form-control" id="announcement_expiry" name="expiry_date">
+                                            <div class="form-text">Leave empty if announcement should not expire.</div>
+                                        </div>
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="announcement_active" name="is_active" checked>
+                                            <label class="form-check-label" for="announcement_active">
+                                                Active (Show to users immediately)
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="send_email" name="send_email">
+                                            <label class="form-check-label" for="send_email">
+                                                Send Email Notification
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="allow_comments" name="allow_comments">
+                                            <label class="form-check-label" for="allow_comments">
+                                                Allow User Comments
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Templates -->
+                                <div class="card">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-magic me-2"></i>Quick Templates
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-grid gap-2">
+                                            <button type="button" class="btn btn-outline-success btn-sm" onclick="loadTemplate('maintenance')">
+                                                System Maintenance
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success btn-sm" onclick="loadTemplate('holiday')">
+                                                Holiday Notice
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success btn-sm" onclick="loadTemplate('deadline')">
+                                                Deadline Reminder
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success btn-sm" onclick="loadTemplate('event')">
+                                                Upcoming Event
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                                <i class="fas fa-eraser me-2"></i>Clear Form
+                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-primary me-2" onclick="saveDraft()">
+                                    <i class="fas fa-save me-2"></i>Save as Draft
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-paper-plane me-2"></i>Publish Announcement
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="previewModalLabel">
+                    <i class="fas fa-eye me-2"></i>Announcement Preview
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <!-- Preview content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitAnnouncement()">Publish Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Character counter for content
+document.getElementById('announcement_content').addEventListener('input', function() {
+    const charCount = this.value.length;
+    document.getElementById('charCount').textContent = charCount + '/5000';
+    
+    if (charCount > 5000) {
+        document.getElementById('charCount').classList.add('text-danger');
+    } else {
+        document.getElementById('charCount').classList.remove('text-danger');
+    }
+});
+
+// Handle "All Users" checkbox
+document.getElementById('target_all').addEventListener('change', function() {
+    const roleCheckboxes = document.querySelectorAll('.role-checkbox');
+    roleCheckboxes.forEach(checkbox => {
+        checkbox.disabled = this.checked;
+        if (this.checked) {
+            checkbox.checked = false;
+        }
+    });
+});
+
+// Handle individual role checkboxes
+document.querySelectorAll('.role-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('target_all').checked = false;
+        }
+        
+        // Check if any role is selected
+        const anyRoleSelected = Array.from(document.querySelectorAll('.role-checkbox')).some(cb => cb.checked);
+        if (anyRoleSelected) {
+            document.getElementById('target_all').checked = false;
+        }
+    });
+});
+
+function previewAnnouncement() {
+    const title = document.getElementById('announcement_title').value;
+    const content = document.getElementById('announcement_content').value;
+    const priority = document.getElementById('announcement_priority').value;
+    
+    if (!title || !content) {
+        alert('Please fill in both title and content before previewing.');
+        return;
+    }
+    
+    const priorityBadges = {
+        'low': '<span class="badge bg-secondary">Low Priority</span>',
+        'medium': '<span class="badge bg-info">Medium Priority</span>',
+        'high': '<span class="badge bg-warning">High Priority</span>',
+        'critical': '<span class="badge bg-danger">Critical</span>'
+    };
+    
+    const previewHTML = `
+        <div class="card">
+            <div class="card-header bg-${priority === 'critical' ? 'danger' : priority === 'high' ? 'warning' : 'primary'} text-white">
+                <h4 class="card-title mb-0">${title}</h4>
+            </div>
+            <div class="card-body">
+                ${priorityBadges[priority]}
+                <div class="mt-3">
+                    ${content.replace(/\n/g, '<br>')}
+                </div>
+                <hr>
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Posted: Just now<br>
+                    <i class="fas fa-user me-1"></i>By: {{ user.get_full_name }}<br>
+                    <i class="fas fa-users me-1"></i>Audience: ${getAudienceText()}
+                </small>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = previewHTML;
+    new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+function getAudienceText() {
+    if (document.getElementById('target_all').checked) {
+        return 'All Users';
+    }
+    
+    const selectedRoles = [];
+    document.querySelectorAll('.role-checkbox:checked').forEach(checkbox => {
+        selectedRoles.push(checkbox.nextElementSibling.textContent.trim());
+    });
+    
+    return selectedRoles.length > 0 ? selectedRoles.join(', ') : 'No audience selected';
+}
+
+function loadTemplate(templateType) {
+    const templates = {
+        'maintenance': {
+            title: 'System Maintenance Scheduled',
+            content: 'Dear users,\n\nPlease be informed that system maintenance is scheduled for the upcoming weekend. The system will be unavailable during this period.\n\nMaintenance Schedule:\n- Start: Saturday, 8:00 PM\n- End: Sunday, 6:00 AM\n\nWe apologize for any inconvenience caused.\n\nThank you for your understanding.\n\nBest regards,\nSystem Administration'
+        },
+        'holiday': {
+            title: 'Holiday Notice',
+            content: 'Dear students and staff,\n\nPlease note that the institution will be closed for the upcoming holiday.\n\nHoliday: [Holiday Name]\nDate: [Date]\n\nRegular operations will resume on the following business day.\n\nWishing everyone a joyful holiday!\n\nAdministration'
+        },
+        'deadline': {
+            title: 'Important Deadline Reminder',
+            content: 'Attention all students,\n\nThis is a reminder about the upcoming deadline for [Assignment/Course Registration/Fee Payment].\n\nDeadline: [Date]\nTime: [Time]\n\nPlease ensure you complete the required actions before the deadline. Late submissions will not be accepted.\n\nFor any queries, please contact the respective department.\n\nRegards,\nAcademic Office'
+        },
+        'event': {
+            title: 'Upcoming Event: [Event Name]',
+            content: 'We are excited to announce our upcoming event!\n\nEvent: [Event Name]\nDate: [Date]\nTime: [Time]\nVenue: [Location]\n\nEvent Highlights:\n- [Feature 1]\n- [Feature 2]\n- [Feature 3]\n\nAll students and staff are cordially invited to attend. Please mark your calendars!\n\nWe look forward to your participation.\n\nEvent Committee'
+        }
+    };
+    
+    const template = templates[templateType];
+    if (template) {
+        document.getElementById('announcement_title').value = template.title;
+        document.getElementById('announcement_content').value = template.content;
+        document.getElementById('announcement_priority').value = 'medium';
+        
+        // Trigger character count update
+        document.getElementById('announcement_content').dispatchEvent(new Event('input'));
+    }
+}
+
+function clearForm() {
+    if (confirm('Are you sure you want to clear the form? All unsaved changes will be lost.')) {
+        document.getElementById('announcementForm').reset();
+        document.getElementById('charCount').textContent = '0/5000';
+        document.getElementById('charCount').classList.remove('text-danger');
+    }
+}
+
+function saveDraft() {
+    const title = document.getElementById('announcement_title').value;
+    if (!title) {
+        alert('Please enter at least a title to save as draft.');
+        return;
+    }
+    
+    // Show saving state
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    saveBtn.disabled = true;
+    
+    setTimeout(() => {
+        alert('Draft saved successfully!');
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }, 1000);
+}
+
+function submitAnnouncement() {
+    // Close preview modal
+    bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+    
+    // Submit the form
+    document.getElementById('announcementForm').submit();
+}
+
+// Set default expiry date to 7 days from now
+document.addEventListener('DOMContentLoaded', function() {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    document.getElementById('announcement_expiry').value = nextWeek.toISOString().split('T')[0];
+});
+</script>
+
+<style>
+.card {
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.btn {
+    border-radius: 0.375rem;
+}
+
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+</style>
+{% endblock %}

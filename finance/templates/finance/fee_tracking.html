@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Tracking{% endblock %}
+
+{% block content %}
+<h1>Fee Tracking</h1>
+<form method="get">
+  <label>Status: <select name="status"><option value="">All</option>{% for k,v in status_choices %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+  <label>Student: <input type="text" name="student" value="{{ request.GET.student }}"></label>
+  <button type="submit">Filter</button>
+</form>
+<table class="table">
+  <thead><tr><th>Student</th><th>Fee</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+  <tbody>
+  {% for p in payments %}
+    <tr>
+      <td>{{ p.student }}</td>
+      <td>{{ p.fee_structure.name }}</td>
+      <td>{{ p.amount_paid }}</td>
+      <td>{{ p.status }}</td>
+      <td>{{ p.payment_date }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5">No payments found</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

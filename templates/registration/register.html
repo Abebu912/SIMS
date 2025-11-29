@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Register - SIMS{% endblock %}
+
+{% block auth_content %}
+<div class="min-vh-100 py-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <div class="card shadow-lg border-0">
+                    <div class="card-header bg-primary text-white text-center py-4">
+                        <h3 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </h3>
+                        <p class="mb-0 mt-2">Join Student Information Management System</p>
+                    </div>
+                    <div class="card-body p-4 p-md-5">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            
+                            {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Please correct the errors below.
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <div class="small">{{ field }}: {{ error }}</div>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Debug: Show available fields -->
+                            <div class="alert alert-info d-none">
+                                <strong>Available Form Fields:</strong>
+                                {% for field in form %}
+                                    {{ field.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
+
+                            <!-- Basic Information -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_username" class="form-label fw-semibold">
+                                            <i class="fas fa-user me-1 text-primary"></i>Username
+                                        </label>
+                                        <input type="text" name="username" id="id_username" class="form-control" 
+                                               placeholder="Choose a username" required
+                                               value="{{ form.username.value|default:'' }}">
+                                        {% if form.username.errors %}
+                                            <div class="text-danger small mt-1">{{ form.username.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_email" class="form-label fw-semibold">
+                                            <i class="fas fa-envelope me-1 text-primary"></i>Email
+                                        </label>
+                                        <input type="email" name="email" id="id_email" class="form-control" 
+                                               placeholder="Enter your email" required
+                                               value="{{ form.email.value|default:'' }}">
+                                        {% if form.email.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_first_name" class="form-label fw-semibold">
+                                            <i class="fas fa-signature me-1 text-primary"></i>First Name
+                                        </label>
+                                        <input type="text" name="first_name" id="id_first_name" class="form-control" 
+                                               placeholder="Enter first name" required
+                                               value="{{ form.first_name.value|default:'' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_last_name" class="form-label fw-semibold">
+                                            <i class="fas fa-signature me-1 text-primary"></i>Last Name
+                                        </label>
+                                        <input type="text" name="last_name" id="id_last_name" class="form-control" 
+                                               placeholder="Enter last name" required
+                                               value="{{ form.last_name.value|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Role Selection -->
+                            <div class="mb-4">
+                                <label for="id_role" class="form-label fw-semibold">
+                                    <i class="fas fa-user-tag me-1 text-primary"></i>Role
+                                </label>
+                                <select name="role" id="id_role" class="form-control" required>
+                                    <option value="">Select Role</option>
+                                    <option value="student" {% if form.role.value == 'student' %}selected{% endif %}>Student</option>
+                                    <option value="teacher" {% if form.role.value == 'teacher' %}selected{% endif %}>Teacher</option>
+                                    <option value="parent" {% if form.role.value == 'parent' %}selected{% endif %}>Parent</option>
+                                    <option value="admin" {% if form.role.value == 'admin' %}selected{% endif %}>Administrator</option>
+                                    <option value="registrar" {% if form.role.value == 'registrar' %}selected{% endif %}>Registrar</option>
+                                    <option value="finance" {% if form.role.value == 'finance' %}selected{% endif %}>Finance Officer</option>
+                                </select>
+                                <small class="form-text text-muted">Select your role in the system</small>
+                            </div>
+                            
+                            <!-- Student-specific fields -->
+                            <div id="student-fields" class="role-specific-fields mb-3" style="display: none;">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary">
+                                            <i class="fas fa-graduation-cap me-1"></i>Student Information
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="id_grade_level" class="form-label fw-semibold">
+                                                        Grade Level *
+                                                    </label>
+                                                    <select name="grade_level" id="id_grade_level" class="form-control">
+                                                        <option value="">Select Grade Level</option>
+                                                        <option value="1">Grade 1</option>
+                                                        <option value="2">Grade 2</option>
+                                                        <option value="3">Grade 3</option>
+                                                        <option value="4">Grade 4</option>
+                                                        <option value="5">Grade 5</option>
+                                                        <option value="6">Grade 6</option>
+                                                        <option value="7">Grade 7</option>
+                                                        <option value="8">Grade 8</option>
+                                                    </select>
+                                                    <small class="form-text text-muted">Select your grade level (1-8)</small>
+                                                    {% if form.grade_level.errors %}
+                                                        <div class="text-danger small mt-1">{{ form.grade_level.errors }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="id_current_semester" class="form-label fw-semibold">
+                                                        Semester *
+                                                    </label>
+                                                    <select name="current_semester" id="id_current_semester" class="form-control">
+                                                        <option value="">Select Semester</option>
+                                                        <option value="first">First Semester</option>
+                                                        <option value="second">Second Semester</option>
+                                                    </select>
+                                                    <small class="form-text text-muted">Select your current semester</small>
+                                                    {% if form.current_semester.errors %}
+                                                        <div class="text-danger small mt-1">{{ form.current_semester.errors }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="id_academic_year" class="form-label fw-semibold">
+                                                Academic Year *
+                                            </label>
+                                            <input type="text" name="academic_year" id="id_academic_year" 
+                                                   class="form-control" placeholder="e.g., 2024-2025"
+                                                   value="{{ form.academic_year.value|default:'2024-2025' }}"
+                                                   pattern="\d{4}-\d{4}">
+                                            <small class="form-text text-muted">Format: YYYY-YYYY (e.g., 2024-2025)</small>
+                                            {% if form.academic_year.errors %}
+                                                <div class="text-danger small mt-1">{{ form.academic_year.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Teacher-specific fields -->
+                            <div id="teacher-fields" class="role-specific-fields mb-3" style="display: none;">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary">
+                                            <i class="fas fa-chalkboard-teacher me-1"></i>Teacher Information
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label for="id_department" class="form-label fw-semibold">Department *</label>
+                                            <input type="text" name="department" id="id_department" class="form-control" 
+                                                   placeholder="e.g., Mathematics Department"
+                                                   value="{{ form.department.value|default:'' }}">
+                                            <small class="form-text text-muted">Required for teachers</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="id_qualification" class="form-label fw-semibold">Qualifications *</label>
+                                            <textarea name="qualification" id="id_qualification" class="form-control" 
+                                                      rows="3" placeholder="Enter your qualifications...">{{ form.qualification.value|default:'' }}</textarea>
+                                            <small class="form-text text-muted">Required for teachers</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Parent-specific fields -->
+                            <div id="parent-fields" class="role-specific-fields mb-3" style="display: none;">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary">
+                                            <i class="fas fa-users me-1"></i>Parent Information
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label for="id_occupation" class="form-label fw-semibold">Occupation *</label>
+                                            <input type="text" name="occupation" id="id_occupation" class="form-control" 
+                                                   placeholder="e.g., Engineer, Doctor, Business"
+                                                   value="{{ form.occupation.value|default:'' }}">
+                                            <small class="form-text text-muted">Required for parents</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="id_relationship" class="form-label fw-semibold">Relationship *</label>
+                                            <select name="relationship" id="id_relationship" class="form-control">
+                                                <option value="">Select Relationship</option>
+                                                <option value="Father">Father</option>
+                                                <option value="Mother">Mother</option>
+                                                <option value="Guardian">Guardian</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                            <small class="form-text text-muted">Required for parents</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="id_student_id_link" class="form-label fw-semibold">Link to Student (Optional)</label>
+                                            <input type="text" name="student_id_link" id="id_student_id_link" class="form-control" 
+                                                   placeholder="Enter student ID to link"
+                                                   value="{{ form.student_id_link.value|default:'' }}">
+                                            <small class="form-text text-muted">Optional: Link to existing student ID (for parents)</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Contact Information -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_phone" class="form-label fw-semibold">
+                                            <i class="fas fa-phone me-1 text-primary"></i>Phone
+                                        </label>
+                                        <input type="text" name="phone" id="id_phone" class="form-control" 
+                                               placeholder="Enter phone number"
+                                               value="{{ form.phone.value|default:'' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_date_of_birth" class="form-label fw-semibold">
+                                            <i class="fas fa-calendar me-1 text-primary"></i>Date of Birth
+                                        </label>
+                                        <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control"
+                                               value="{{ form.date_of_birth.value|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Passwords -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_password1" class="form-label fw-semibold">
+                                            <i class="fas fa-key me-1 text-primary"></i>Password
+                                        </label>
+                                        <input type="password" name="password1" id="id_password1" class="form-control" 
+                                               placeholder="Enter password" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_password2" class="form-label fw-semibold">
+                                            <i class="fas fa-key me-1 text-primary"></i>Confirm Password
+                                        </label>
+                                        <input type="password" name="password2" id="id_password2" class="form-control" 
+                                               placeholder="Confirm password" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-semibold">
+                                <i class="fas fa-user-plus me-2"></i> Create Account
+                            </button>
+                        </form>
+                        
+                        <div class="mt-4 text-center">
+                            <p class="mb-3">Already have an account? 
+                                <a href="{% url 'login' %}" class="text-decoration-none fw-semibold">Login here</a>
+                            </p>
+                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for role-specific fields -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('id_role');
+    const studentFields = document.getElementById('student-fields');
+    const teacherFields = document.getElementById('teacher-fields');
+    const parentFields = document.getElementById('parent-fields');
+    
+    function toggleRoleFields() {
+        // Hide all fields first
+        studentFields.style.display = 'none';
+        teacherFields.style.display = 'none';
+        parentFields.style.display = 'none';
+        
+        // Remove required from all role-specific fields first
+        document.getElementById('id_grade_level').required = false;
+        document.getElementById('id_current_semester').required = false;
+        document.getElementById('id_academic_year').required = false;
+        document.getElementById('id_department').required = false;
+        document.getElementById('id_qualification').required = false;
+        document.getElementById('id_occupation').required = false;
+        document.getElementById('id_relationship').required = false;
+        
+        // Show relevant fields based on selection
+        const selectedRole = roleSelect.value;
+        if (selectedRole === 'student') {
+            studentFields.style.display = 'block';
+            // Make student fields required
+            document.getElementById('id_grade_level').required = true;
+            document.getElementById('id_current_semester').required = true;
+            document.getElementById('id_academic_year').required = true;
+        } else if (selectedRole === 'teacher') {
+            teacherFields.style.display = 'block';
+            // Make teacher fields required
+            document.getElementById('id_department').required = true;
+            document.getElementById('id_qualification').required = true;
+        } else if (selectedRole === 'parent') {
+            parentFields.style.display = 'block';
+            // Make parent fields required
+            document.getElementById('id_occupation').required = true;
+            document.getElementById('id_relationship').required = true;
+        }
+    }
+    
+    // Initial toggle
+    toggleRoleFields();
+    
+    // Add event listener for changes
+    roleSelect.addEventListener('change', toggleRoleFields);
+    
+    // Set default values if form was submitted with errors
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('role')) {
+        roleSelect.value = urlParams.get('role');
+        toggleRoleFields();
+    }
+});
+</script>
+
+<style>
+.role-specific-fields {
+    transition: all 0.3s ease;
+}
+
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.card {
+    border-radius: 1rem;
+}
+
+.card-header {
+    border-radius: 1rem 1rem 0 0 !important;
+}
+
+.required-field::after {
+    content: " *";
+    color: red;
+}
+</style>
+{% endblock %}

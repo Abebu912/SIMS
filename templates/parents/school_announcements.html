@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}School Announcements - SIMS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Announcements</h1>
+    {% if announcements %}
+    <div class="list-group">
+        {% for ann in announcements %}
+        <div class="list-group-item">
+            <h5>{{ ann.title }}</h5>
+            <p class="mb-1">{{ ann.summary|default:ann.content|truncatewords:30 }}</p>
+            <small class="text-muted">Posted {{ ann.created_at|date:"M j, Y H:i" }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No announcements at this time.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,514 @@
+================================================================================
+STUDENT INFORMATION MANAGEMENT SYSTEM (SIMS)
+Complete Installation & Deployment Guide
+================================================================================
+
+PROJECT OVERVIEW
+The SIMS is a full-stack web application built with:
+- Backend: Django 4.2 + Django REST Framework + SQLite
+- Frontend: HTML5, CSS3, JavaScript (ES6 Modules)
+- Authentication: JWT Token-based
+- Architecture: 3-tier (Presentation, Business Logic, Data)
+
+================================================================================
+DIRECTORY STRUCTURE
+================================================================================
+
+sims_project/
+├── manage.py                 # Django management script
+├── requirements.txt          # Python dependencies
+├── db.sqlite3               # SQLite database (auto-created)
+├── sims_project/            # Main Django project
+│   ├── __init__.py
+│   ├── settings.py          # Project configuration
+│   ├── urls.py              # Main URL routing
+│   ├── asgi.py
+│   └── wsgi.py
+├── users/                   # User authentication app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── students/                # Student management app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── courses/                 # Course management app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── grades/                  # Grade management app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── payments/                # Payment processing app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── notifications/           # Notification system app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+├── ai_advisor/              # AI advisor app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── __init__.py
+└── static/                  # Frontend assets
+    ├── index.html           # Main HTML file
+    ├── css/
+    │   └── style.css        # All styling
+    └── js/
+        ├── auth.js          # Authentication logic
+        ├── api.js           # API client
+        └── app.js           # Main application
+
+================================================================================
+INSTALLATION STEPS
+================================================================================
+
+STEP 1: SYSTEM REQUIREMENTS
+- Python 3.8 or higher
+- pip (Python package manager)
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+- Text editor or IDE
+
+STEP 2: CLONE/DOWNLOAD THE PROJECT
+Download or clone the project files to your local machine.
+
+STEP 3: CREATE VIRTUAL ENVIRONMENT
+Windows:
+    python -m venv venv
+    venv\Scripts\activate
+
+Mac/Linux:
+    python3 -m venv venv
+    source venv/bin/activate
+
+STEP 4: INSTALL DEPENDENCIES
+    pip install -r requirements.txt
+
+STEP 5: SETUP DATABASE
+    python manage.py makemigrations
+    python manage.py migrate
+
+This creates SQLite database with all tables.
+
+STEP 6: CREATE SUPERUSER (ADMIN ACCOUNT)
+    python manage.py createsuperuser
+
+You'll be prompted to enter:
+- Username: admin
+- Email: admin@example.com
+- Password: (enter secure password)
+
+STEP 7: CREATE TEST DATA
+    python manage.py shell
+
+Then run these commands:
+    from users.models import CustomUser
+    from students.models import Student
+    from courses.models import Course
+    from datetime import date
+    
+    # Create teacher user
+    teacher = CustomUser.objects.create_user(
+        username='teacher1',
+        password='password123',
+        email='teacher1@school.com',
+        first_name='Ahmed',
+        last_name='Hassan',
+        role='teacher'
+    )
+    
+    # Create student user
+    student_user = CustomUser.objects.create_user(
+        username='student1',
+        password='password123',
+        email='student1@school.com',
+        first_name='John',
+        last_name='Doe',
+        role='student'
+    )
+    
+    # Create student profile
+    student = Student.objects.create(
+        user=student_user,
+        student_id='STU001',
+        grade_level='Grade 8',
+        guardian_name='Jane Doe',
+        guardian_phone='+251911234567',
+        guardian_email='jane@example.com'
+    )
+    
+    # Create courses
+    Course.objects.create(
+        course_code='CS101',
+        course_name='Introduction to Programming',
+        description='Learn programming basics',
+        teacher=teacher,
+        semester='Semester 1'
+    )
+    
+    exit()
+
+STEP 8: RUN DEVELOPMENT SERVER
+    python manage.py runserver
+
+The server will start at: http://localhost:8000
+
+STEP 9: ACCESS THE APPLICATION
+- API Admin Panel: http://localhost:8000/admin/
+- Frontend: http://localhost:8000/static/index.html
+
+================================================================================
+LOGIN CREDENTIALS
+================================================================================
+
+ADMIN ACCOUNT
+Username: admin
+Password: (use password set during superuser creation)
+Role: Administrator
+
+TEACHER ACCOUNT (from test data)
+Username: teacher1
+Password: password123
+Role: Teacher
+
+STUDENT ACCOUNT (from test data)
+Username: student1
+Password: password123
+Role: Student
+
+================================================================================
+API ENDPOINTS REFERENCE
+================================================================================
+
+BASE URL: http://localhost:8000/api
+
+AUTHENTICATION ENDPOINTS:
+POST /users/register/
+    - Register new user
+    - Body: {username, email, password, first_name, last_name, role}
+
+POST /users/login/
+    - Login user
+    - Body: {username, password}
+    - Returns: {access, refresh, user}
+
+GET /users/me/
+    - Get current user profile
+    - Headers: Authorization: Bearer <token>
+
+STUDENT ENDPOINTS:
+GET /students/
+    - List all students
+
+POST /students/
+    - Create new student
+
+GET /students/{id}/
+    - Get specific student
+
+GET /students/my_profile/
+    - Get current user's student profile
+
+GET /students/by_grade/?grade=Grade%201
+    - Get students by grade level
+
+COURSE ENDPOINTS:
+GET /courses/courses/
+    - List all courses
+
+GET /courses/courses/{id}/
+    - Get specific course details
+
+POST /courses/courses/{id}/enroll/
+    - Enroll student in course
+
+GET /courses/enrollments/my_courses/
+    - Get student's enrolled courses
+
+GRADE ENDPOINTS:
+GET /grades/grades/
+    - List grades
+
+GET /grades/grades/my_grades/
+    - Get current student's grades
+
+GET /grades/transcripts/
+    - List transcripts
+
+GET /grades/transcripts/my_transcript/
+    - Get current student's transcript
+
+PAYMENT ENDPOINTS:
+GET /payments/fees/
+    - List active fees
+
+GET /payments/payments/
+    - List all payments
+
+GET /payments/payments/my_payments/
+    - Get current student's payments
+
+POST /payments/payments/initiate_payment/
+    - Process payment
+    - Body: {fee_id, amount, payment_method}
+
+GET /payments/balance/my_balance/
+    - Get fee balance
+
+NOTIFICATION ENDPOINTS:
+GET /notifications/notifications/
+    - Get notifications for current user
+
+POST /notifications/notifications/{id}/mark_as_read/
+    - Mark notification as read
+
+POST /notifications/notifications/mark_all_as_read/
+    - Mark all notifications as read
+
+GET /notifications/notifications/unread_count/
+    - Get count of unread notifications
+
+GET /notifications/announcements/
+    - Get announcements
+
+AI ADVISOR ENDPOINTS:
+GET /ai/conversations/
+    - List conversations
+
+POST /ai/conversations/start_conversation/
+    - Start new conversation
+    - Body: {topic}
+
+POST /ai/conversations/{id}/send_message/
+    - Send message to AI
+    - Body: {message}
+
+GET /ai/recommendations/
+    - List recommendations
+
+POST /ai/recommendations/generate_recommendations/
+    - Generate course recommendations
+
+================================================================================
+FRONTEND FEATURES
+================================================================================
+
+LOGIN PAGE
+- Username/Email input
+- Password input
+- Role selector (Student, Teacher, Parent, Admin, Registrar, Finance)
+- Secure JWT authentication
+
+DASHBOARD
+- Welcome message with user profile
+- Quick statistics (GPA, Courses, Attendance, Fee Status)
+- Quick action buttons
+- Recent announcements
+- Responsive grid layout
+
+COURSES PAGE
+- List enrolled courses with status
+- Enroll in new courses
+- View course details
+- Filter by semester
+
+GRADES PAGE
+- View all grades for enrolled courses
+- Course-wise performance
+- Download/Print transcript
+- Grade history
+
+PAYMENTS PAGE
+- Fee summary (Total Owed, Paid, Balance)
+- Payment form with multiple methods
+- Payment history with status
+- Payment receipts
+
+NOTIFICATIONS PAGE
+- Real-time notification display
+- Mark as read functionality
+- Filter by type (Grade, Fee, Announcement, etc.)
+- Notification history
+
+AI ADVISOR PAGE
+- Chat interface with AI
+- Conversation history
+- Course recommendations
+- Academic guidance
+- Study tips and suggestions
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ISSUE: "ModuleNotFoundError: No module named 'django'"
+SOLUTION: Install dependencies with: pip install -r requirements.txt
+
+ISSUE: "No migrations to apply" during migrate
+SOLUTION: Already applied, continue with next step
+
+ISSUE: "Port 8000 is already in use"
+SOLUTION: Use different port: python manage.py runserver 8001
+
+ISSUE: "CORS errors in browser console"
+SOLUTION: Check CORS_ALLOWED_ORIGINS in settings.py and add your domain
+
+ISSUE: Login not working
+SOLUTION: 
+- Check database was migrated
+- Verify credentials in admin panel (/admin/)
+- Clear browser cache/localStorage
+
+ISSUE: Frontend not loading
+SOLUTION:
+- Check browser console for errors (F12)
+- Verify static files are accessible
+- Check network tab for API calls
+
+ISSUE: API returns 401 Unauthorized
+SOLUTION:
+- Token might have expired, refresh it
+- Check Authorization header in requests
+- Clear localStorage and login again
+
+================================================================================
+SECURITY CONSIDERATIONS
+================================================================================
+
+BEFORE PRODUCTION DEPLOYMENT:
+
+1. CHANGE SECRET KEY
+   Edit sims_project/settings.py:
+   - Generate new SECRET_KEY with: 
+     python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+   - Replace SECRET_KEY value
+
+2. SET DEBUG=False
+   Edit sims_project/settings.py:
+   DEBUG = False
+
+3. UPDATE ALLOWED_HOSTS
+   Edit sims_project/settings.py:
+   ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
+
+4. USE ENVIRONMENT VARIABLES
+   Install python-decouple:
+   pip install python-decouple
+   
+   Create .env file with sensitive info
+   Update settings.py to use environment variables
+
+5. ENABLE HTTPS
+   Use SSL certificates
+   Set SECURE_SSL_REDIRECT = True
+
+6. SETUP DATABASE BACKUPS
+   Regular SQLite backups or migrate to PostgreSQL
+
+7. RATE LIMITING
+   Implement rate limiting for API endpoints
+
+8. INPUT VALIDATION
+   All input is validated on backend already
+
+================================================================================
+DEPLOYMENT OPTIONS
+================================================================================
+
+OPTION 1: HEROKU
+1. Install Heroku CLI
+2. Create Procfile with: web: gunicorn sims_project.wsgi
+3. Create runtime.txt with: python-3.10.12
+4. heroku login
+5. heroku create your-app-name
+6. heroku config:set SECRET_KEY=your-secret-key
+7. git push heroku main
+
+OPTION 2: AWS
+1. Create EC2 instance
+2. SSH into instance
+3. Install Python, PostgreSQL
+4. Clone project
+5. Install dependencies
+6. Configure Nginx/Apache as reverse proxy
+7. Use Gunicorn as application server
+
+OPTION 3: RAILWAY/RENDER
+1. Push code to GitHub
+2. Connect repository to Railway/Render
+3. Set environment variables
+4. Deploy automatically
+
+OPTION 4: DIGITAL OCEAN
+1. Create Droplet
+2. SSH and install dependencies
+3. Configure nginx
+4. Use systemd for process management
+5. Deploy using git or rsync
+
+================================================================================
+MONITORING & MAINTENANCE
+================================================================================
+
+REGULAR TASKS:
+- Daily: Check error logs
+- Weekly: Review user activity
+- Monthly: Database backup
+- Monthly: Security updates
+- Quarterly: Performance optimization
+
+USEFUL COMMANDS:
+python manage.py check              # Check for issues
+python manage.py runserver          # Development server
+python manage.py shell              # Interactive shell
+python manage.py dbshell            # Database shell
+python manage.py createsuperuser    # Create admin
+python manage.py changepasword      # Change user password
+python manage.py dumpdata           # Backup database
+python manage.py loaddata           # Restore backup
+
+================================================================================
+SUPPORT & DOCUMENTATION
+================================================================================
+
+Official Documentation:
+- Django: https://docs.djangoproject.com/
+- Django REST: https://www.django-rest-framework.org/
+- JWT Auth: https://django-rest-framework-simplejwt.readthedocs.io/
+
+Getting Help:
+- Django Forum: https://forum.djangoproject.com/
+- Stack Overflow: https://stackoverflow.com/questions/tagged/django
+- GitHub Issues: Report bugs in project repository
+
+================================================================================
+VERSION HISTORY
+================================================================================
+
+Version 1.0.0 (Initial Release)
+- User authentication with JWT
+- Student management system
+- Course enrollment
+- Grade tracking
+- Payment processing
+- Notifications system
+- AI Academic Advisor
+- Modern responsive UI
+
+================================================================================

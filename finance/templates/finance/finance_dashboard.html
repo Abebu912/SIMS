@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Finance Dashboard{% endblock %}
+
+{% block content %}
+<h1>Finance Dashboard</h1>
+<div>
+  <p>Total revenue: {{ total_revenue }}</p>
+  <p>Pending payments: {{ pending_payments }}</p>
+  <p>Fee structures: {{ total_fee_structures }}</p>
+</div>
+<h2>Recent payments</h2>
+<table class="table">
+  <thead><tr><th>Student</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+  <tbody>
+  {% for p in recent_payments %}
+    <tr>
+      <td>{{ p.student }}</td>
+      <td>{{ p.amount_paid }}</td>
+      <td>{{ p.status }}</td>
+      <td>{{ p.payment_date }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">No recent payments</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

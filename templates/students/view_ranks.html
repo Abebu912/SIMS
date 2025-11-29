@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>My Ranks</title>
+</head>
+<body>
+    <h1>My Ranks</h1>
+    {% if ranks %}
+    <ul>
+        {% for r in ranks %}
+        <li>{{ r.subject }} — Rank: {{ r.rank }} — Score: {{ r.score }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No ranks available.</p>
+    {% endif %}
+</body>
+</html>

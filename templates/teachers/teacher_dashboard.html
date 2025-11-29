@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Teacher Dashboard{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Teacher Dashboard</h2>
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card text-white bg-success mb-2">
+        <div class="card-body">
+          <h5 class="card-title">{{ total_students }}</h5>
+          <p class="card-text">Total Students</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-info mb-2">
+        <div class="card-body">
+          <h5 class="card-title">{{ pending_scores }}</h5>
+          <p class="card-text">Pending Scores</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-warning mb-2">
+        <div class="card-body">
+          <h5 class="card-title">{{ num_subjects }}</h5>
+          <p class="card-text">Subjects Assigned</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-danger mb-2">
+        <div class="card-body">
+          <h5 class="card-title">{{ distinct_student_count }}</h5>
+          <p class="card-text">Distinct Students</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter form -->
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Grade Level</label>
+      <select name="grade_level" class="form-control">
+        <option value="">All Grades</option>
+        {% for val,label in grade_choices %}
+          <option value="{{ val }}" {% if selected_grade_level|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Academic Year</label>
+      <select name="academic_year" class="form-control">
+        {% for ay in academic_year_choices %}
+          <option value="{{ ay }}" {% if ay == selected_academic_year %}selected{% endif %}>{{ ay }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Semester</label>
+      <select name="semester" class="form-control">
+        <option value="first" {% if selected_semester == 'first' %}selected{% endif %}>First</option>
+        <option value="second" {% if selected_semester == 'second' %}selected{% endif %}>Second</option>
+      </select>
+    </div>
+    <div class="col-md-3 align-self-end">
+      <button class="btn btn-primary" type="submit">Apply Filters</button>
+    </div>
+  </form>
+  <!-- Bulk assign form -->
+  <!-- Bulk assignment is handled by Registrar; teachers cannot assign subjects. -->
+  <h4>Your Subjects</h4>
+  <div class="list-group mb-3">
+    {% for c in teacher_subjects %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ c.code }}</strong> - {{ c.name }}
+          <div class="text-muted small">Students: {{ c.student_count|default:0 }}{% if c.pending_count %} • Pending: {{ c.pending_count }}{% endif %} • Sessions/week: {{ c.sessions_per_week|default:3 }}</div>
+        </div>
+        <div>
+          <a href="{% url 'enter_grades' %}?subject_id={{ c.id }}&academic_year={{ selected_academic_year }}&semester={{ selected_semester }}" class="btn btn-sm btn-primary me-1">Enter Scores</a>
+          <a href="{% url 'class_rosters' %}?subject_id={{ c.id }}&academic_year={{ selected_academic_year }}&semester={{ selected_semester }}" class="btn btn-sm btn-secondary me-1">Rosters</a>
+          <a href="{% url 'performance_reports' %}?subject_id={{ c.id }}&academic_year={{ selected_academic_year }}&semester={{ selected_semester }}" class="btn btn-sm btn-info me-1">Reports</a>
+          <a href="{% url 'bulk_grade_upload' c.id %}" class="btn btn-sm btn-outline-dark">Bulk Upload</a>
+        </div>
+      </div>
+    {% empty %}
+      <div class="list-group-item">No active subjects assigned.</div>
+    {% endfor %}
+  </div>
+  
+  <!-- Available subject claiming removed. Subject assignment is performed by the Registrar only. -->
+
+  <h4 class="mt-4">Students Overview</h4>
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Averages & Ranks</h5>
+      {% if student_ranking %}
+        <table class="table table-sm">
+          <thead><tr><th>Rank</th><th>Student</th><th>Average</th></tr></thead>
+          <tbody>
+            {% for s in student_ranking %}
+              <tr>
+                <td>{% if s.rank %}{{ s.rank }}{% else %}-{% endif %}</td>
+                <td>{{ s.student.get_full_name }}</td>
+                <td>{% if s.avg is not None %}{{ s.avg }} / 100{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No student scores available yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

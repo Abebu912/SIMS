@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Register - SIMS{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Create Account</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.username.label_tag }}
+                                    {{ form.username }}
+                                    {% if form.username.errors %}
+                                        <div class="text-danger">{{ form.username.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.email.label_tag }}
+                                    {{ form.email }}
+                                    {% if form.email.errors %}
+                                        <div class="text-danger">{{ form.email.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.first_name.label_tag }}
+                                    {{ form.first_name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.last_name.label_tag }}
+                                    {{ form.last_name }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Role Selection -->
+                        <div class="mb-3">
+                            {{ form.role.label_tag }}
+                            {{ form.role }}
+                            <small class="form-text text-muted">Select your role in the system</small>
+                        </div>
+                        
+                        <!-- Role-specific fields (initially hidden) -->
+                        <div id="student-fields" class="role-specific-fields">
+                            <div class="mb-3">
+                                {{ form.program.label_tag }}
+                                {{ form.program }}
+                                <small class="form-text text-muted">{{ form.program.help_text }}</small>
+                            </div>
+                        </div>
+                        
+                        <div id="teacher-fields" class="role-specific-fields">
+                            <div class="mb-3">
+                                {{ form.department.label_tag }}
+                                {{ form.department }}
+                                <small class="form-text text-muted">{{ form.department.help_text }}</small>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.qualification.label_tag }}
+                                {{ form.qualification }}
+                                <small class="form-text text-muted">{{ form.qualification.help_text }}</small>
+                            </div>
+                        </div>
+                        
+                        <div id="parent-fields" class="role-specific-fields">
+                            <div class="mb-3">
+                                {{ form.occupation.label_tag }}
+                                {{ form.occupation }}
+                                <small class="form-text text-muted">{{ form.occupation.help_text }}</small>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.relationship.label_tag }}
+                                {{ form.relationship }}
+                                <small class="form-text text-muted">{{ form.relationship.help_text }}</small>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.student_id_link.label_tag }}
+                                {{ form.student_id_link }}
+                                <small class="form-text text-muted">{{ form.student_id_link.help_text }}</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Contact Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.phone.label_tag }}
+                                    {{ form.phone }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.date_of_birth.label_tag }}
+                                    {{ form.date_of_birth }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Passwords -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.password1.label_tag }}
+                                    {{ form.password1 }}
+                                    {% if form.password1.help_text %}
+                                        <small class="form-text text-muted">{{ form.password1.help_text }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.password2.label_tag }}
+                                    {{ form.password2 }}
+                                    {% if form.password2.help_text %}
+                                        <small class="form-text text-muted">{{ form.password2.help_text }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Register</button>
+                    </form>
+                    
+                    <div class="mt-3 text-center">
+                        <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/registration.js' %}"></script>
+{% endblock %}

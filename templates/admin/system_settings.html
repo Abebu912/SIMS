@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}System Settings - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>System Settings
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Quick Actions -->
+                    <div class="d-flex justify-content-between mb-4 flex-wrap gap-2">
+                        <a href="{% url 'admin_panel' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Admin Panel
+                        </a>
+                        <button type="submit" form="systemSettingsForm" name="action" value="save" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+
+                    <!-- System Settings Form -->
+                    <form method="post" id="systemSettingsForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- General Settings -->
+                            <div class="col-lg-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-cog me-2"></i>General Settings
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="site_name" class="form-label">Site Name</label>
+                                            <input type="text" class="form-control" id="site_name" name="site_name" 
+                                                   value="{{ site_settings.site_name|default:'Student Information Management System' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="site_description" class="form-label">Site Description</label>
+                                            <textarea class="form-control" id="site_description" name="site_description" 
+                                                      rows="3">{{ site_settings.site_description|default:'A comprehensive student information management system' }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="admin_email" class="form-label">Admin Email</label>
+                                            <input type="email" class="form-control" id="admin_email" name="admin_email" 
+                                                   value="{{ site_settings.admin_email|default:default_from_email }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- User Management Settings -->
+                            <div class="col-lg-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-users me-2"></i>User Management
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enable_user_registration" name="enable_user_registration" {% if site_settings.enable_user_registration|default:True %}checked{% endif %}>
+                                            <label class="form-check-label" for="enable_user_registration">
+                                                Enable User Registration
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="require_admin_approval" name="require_admin_approval" {% if site_settings.require_admin_approval|default:True %}checked{% endif %}>
+                                            <label class="form-check-label" for="require_admin_approval">
+                                                Require Admin Approval for New Users
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="require_email_verification" name="require_email_verification" {% if site_settings.require_email_verification %}checked{% endif %}>
+                                            <label class="form-check-label" for="require_email_verification">
+                                                Require Email Verification
+                                            </label>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="max_login_attempts" class="form-label">Max Login Attempts</label>
+                                            <input type="number" class="form-control" id="max_login_attempts" name="max_login_attempts" 
+                                                   value="{{ site_settings.max_login_attempts|default:5 }}" min="1" max="10">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Settings -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-graduation-cap me-2"></i>Academic Settings
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="max_courses_per_student" class="form-label">Max Courses Per Student</label>
+                                                    <input type="number" class="form-control" id="max_courses_per_student" 
+                                                           name="max_courses_per_student" value="{{ site_settings.max_courses_per_student|default:6 }}" min="1" max="20">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="grade_scale" class="form-label">Grade Scale</label>
+                                                    <select class="form-control" id="grade_scale" name="grade_scale">
+                                                        <option value="4.0" {% if site_settings.grade_scale|default:'4.0' == '4.0' %}selected{% endif %}>4.0 Scale (A=4.0, B=3.0, etc)</option>
+                                                        <option value="100" {% if site_settings.grade_scale == '100' %}selected{% endif %}>100 Point Scale</option>
+                                                        <option value="letter" {% if site_settings.grade_scale == 'letter' %}selected{% endif %}>Letter Grades Only</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="passing_grade" class="form-label">Passing Grade (%)</label>
+                                                    <input type="number" class="form-control" id="passing_grade" 
+                                                           name="passing_grade" value="{{ site_settings.passing_grade|default:60 }}" min="0" max="100">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Settings -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-envelope me-2"></i>Email & Password Reset
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="default_from_email" class="form-label">Default "From" Email</label>
+                                                    <input type="email" class="form-control" id="default_from_email" name="default_from_email"
+                                                           value="{{ default_from_email }}" required>
+                                                    <div class="form-text">This address is used for password reset and notification emails.</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="email_backend" class="form-label">Email Backend</label>
+                                                    <select class="form-control" id="email_backend" name="email_backend">
+                                                        {% for backend, label in email_backends %}
+                                                            <option value="{{ backend }}" {% if email_settings.backend == backend %}selected{% endif %}>{{ label }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="email_host" class="form-label">SMTP Host</label>
+                                                    <input type="text" class="form-control" id="email_host" name="email_host"
+                                                           value="{{ email_settings.host }}" placeholder="smtp.gmail.com">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-3">
+                                                    <label for="email_port" class="form-label">Port</label>
+                                                    <input type="number" class="form-control" id="email_port" name="email_port"
+                                                           value="{{ email_settings.port }}" placeholder="587">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label for="email_host_user" class="form-label">SMTP Username</label>
+                                                    <input type="text" class="form-control" id="email_host_user" name="email_host_user"
+                                                           value="{{ email_settings.user|default:default_from_email }}">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label for="email_host_password" class="form-label">SMTP Password / App Password</label>
+                                                    <input type="password" class="form-control" id="email_host_password" name="email_host_password"
+                                                           placeholder="{% if email_settings.has_password %}******** (unchanged){% else %}Enter app password{% endif %}">
+                                                    {% if email_settings.has_password %}
+                                                        <small class="text-muted">Leave blank to keep the current password.</small>
+                                                    {% else %}
+                                                        <small class="text-muted">For Gmail use a 16-character App Password.</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="email_use_tls" name="email_use_tls" {% if email_settings.use_tls %}checked{% endif %}>
+                                                    <label class="form-check-label" for="email_use_tls">
+                                                        Use TLS
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="email_use_ssl" name="email_use_ssl" {% if email_settings.use_ssl %}checked{% endif %}>
+                                                    <label class="form-check-label" for="email_use_ssl">
+                                                        Use SSL
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="test_email_recipient" class="form-label">Send Test Email To</label>
+                                                    <input type="email" class="form-control" id="test_email_recipient" name="test_email_recipient"
+                                                           placeholder="teacher@example.com">
+                                                    <div class="form-text">Use the button below to send a test message after saving credentials.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Gmail users: enable 2-Step Verification, generate an App Password, and paste it above. 
+                                            Most providers require TLS on port 587.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Maintenance -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-danger text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-tools me-2"></i>System Maintenance
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="backup_frequency" class="form-label">Auto Backup Frequency</label>
+                                                    <select class="form-control" id="backup_frequency" name="backup_frequency">
+                                                        <option value="daily" {% if site_settings.auto_backup_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                                                        <option value="weekly" {% if site_settings.auto_backup_frequency|default:'weekly' == 'weekly' %}selected{% endif %}>Weekly</option>
+                                                        <option value="monthly" {% if site_settings.auto_backup_frequency == 'monthly' %}selected{% endif %}>Monthly</option>
+                                                        <option value="never" {% if site_settings.auto_backup_frequency == 'never' %}selected{% endif %}>Never</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="session_timeout" class="form-label">Session Timeout (minutes)</label>
+                                                    <input type="number" class="form-control" id="session_timeout" 
+                                                           name="session_timeout" value="{{ site_settings.session_timeout|default:30 }}" min="5" max="240">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>Warning:</strong> Some settings may require system restart to take effect.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-wrap justify-content-between mt-4 gap-2">
+                            <a href="{% url 'system_settings' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-undo me-2"></i>Reload Current Values
+                            </a>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" name="action" value="save" class="btn btn-success">
+                                    <i class="fas fa-save me-2"></i>Save All Settings
+                                </button>
+                                <button type="submit" name="action" value="send_test_email" class="btn btn-outline-primary">
+                                    <i class="fas fa-paper-plane me-2"></i>Save & Send Test Email
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.btn {
+    border-radius: 0.375rem;
+}
+</style>
+{% endblock %}

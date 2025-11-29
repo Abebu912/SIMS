@@ -1,0 +1,161 @@
+<!-- templates/registrar/dashboard.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrar Dashboard - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-user-tie me-2"></i>Registrar Dashboard
+                    </h4>
+                    <small>Welcome, {{ user.get_full_name|default:user.username }}</small>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Quick Stats -->
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4 class="mb-0">150</h4>
+                                            <p class="mb-0">Total Students</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-users fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4 class="mb-0">25</h4>
+                                            <p class="mb-0">Pending Registrations</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clipboard-list fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4 class="mb-0">8</h4>
+                                            <p class="mb-0">Teachers</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-chalkboard-teacher fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4 class="mb-0">15</h4>
+                                            <p class="mb-0">Subjects</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-book fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="mb-3"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'manage_academic_records' %}" class="btn btn-outline-primary btn-lg w-100 h-100 py-3">
+                                        <i class="fas fa-user-graduate fa-2x mb-2"></i><br>
+                                        Manage Students
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'manage_academic_records' %}" class="btn btn-outline-success btn-lg w-100 h-100 py-3">
+                                        <i class="fas fa-book fa-2x mb-2"></i><br>
+                                        Manage Subjects
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'assign_subjects_to_teacher' %}" class="btn btn-outline-primary btn-lg w-100 h-100 py-3">
+                                        <i class="fas fa-user-plus fa-2x mb-2"></i><br>
+                                        Assign Subjects
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'approve_registrations' %}" class="btn btn-outline-warning btn-lg w-100 h-100 py-3">
+                                        <i class="fas fa-clipboard-check fa-2x mb-2"></i><br>
+                                        Registration Approvals
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-history me-2"></i>Recent Activity
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">New student registration</h6>
+                                                <small>2 hours ago</small>
+                                            </div>
+                                            <p class="mb-1">John Doe registered for Grade 1</p>
+                                        </div>
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">Subject registration approved</h6>
+                                                <small>4 hours ago</small>
+                                            </div>
+                                            <p class="mb-1">Mathematics registration approved for 15 students</p>
+                                        </div>
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">New teacher added</h6>
+                                                <small>1 day ago</small>
+                                            </div>
+                                            <p class="mb-1">Dr. Sarah Johnson added to Science department</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

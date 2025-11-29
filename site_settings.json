@@ -1,0 +1,37 @@
+{
+  "site_name": "Student Information Management System",
+  "site_description": "A comprehensive student information management system",
+  "admin_email": "abebuwubete099@gmail.com",
+  "enable_user_registration": true,
+  "require_admin_approval": true,
+  "require_email_verification": true,
+  "max_login_attempts": 5,
+  "max_courses_per_student": 6,
+  "grade_scale": "4.0",
+  "passing_grade": 60,
+  "auto_backup_frequency": "weekly",
+  "session_timeout": 30,
+  "default_from_email": "abebuwubete099@gmail.com",
+  "email": {
+    "backend": "django.core.mail.backends.smtp.EmailBackend",
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "abebuwubete099@gmail.com",
+    "password": "xsvuarxmynwdvjfh",
+    "use_tls": true,
+    "use_ssl": false,
+    "default_from_email": "abebuwubete099@gmail.com"
+  },
+  "email_settings": {
+    "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+    "EMAIL_HOST": "smtp.gmail.com",
+    "EMAIL_PORT": 587,
+    "EMAIL_USE_TLS": true,
+    "EMAIL_USE_SSL": false,
+    "EMAIL_HOST_USER": "abebuwubete099@gmail.com",
+    "EMAIL_HOST_PASSWORD": "xsvuarxmynwdvjfh",
+    "DEFAULT_FROM_EMAIL": "abebuwubete099@gmail.com",
+    "PASSWORD_RESET_TIMEOUT": 86400,
+    "SITE_URL": "http://127.0.0.1:8000"
+  }
+}

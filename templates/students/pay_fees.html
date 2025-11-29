@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Pay Fees{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Pay Fees</h2>
+
+  {% if fee_structures %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label for="fee_structure_id" class="form-label">Select fee:</label>
+        <select id="fee_structure_id" name="fee_structure_id" class="form-select">
+          {% for f in fee_structures %}
+            <option value="{{ f.id }}">{{ f.name }} — {{ f.amount }} ({{ f.description }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Pay Now</button>
+    </form>
+  {% else %}
+    <div class="alert alert-info">No active fees available at the moment.</div>
+  {% endif %}
+
+  <hr />
+  <h4>Your Payments</h4>
+  {% if payments.exists %}
+    <table class="table">
+      <thead><tr><th>Fee</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td>{{ p.fee_structure.name }}</td>
+          <td>{{ p.amount_paid }}</td>
+          <td>{{ p.status }}</td>
+          <td>{{ p.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>You have no payment records.</p>
+  {% endif %}
+</div>
+{% endblock %}

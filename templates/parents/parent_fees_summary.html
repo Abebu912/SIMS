@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Statements - SIMS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Fee Statements</h1>
+    {% if summary %}
+    <div class="list-group">
+        {% for item in summary %}
+        <div class="list-group-item">
+            <h5>{{ item.student.get_full_name }} <small class="text-muted">({{ item.relationship }})</small></h5>
+            <p>Pending: {{ item.pending }} | Completed: {{ item.completed }} | Total: {{ item.total }}</p>
+            <a href="{% url 'child_fees' item.student.id %}" class="btn btn-sm btn-primary">View Details</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No children or fee records available.</p>
+    {% endif %}
+</div>
+{% endblock %}

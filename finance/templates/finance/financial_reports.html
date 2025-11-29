@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Financial Reports{% endblock %}
+
+{% block content %}
+<h1>Financial Reports</h1>
+<p>Report period: {{ start_date }} — {{ end_date }}</p>
+<h2>Revenue by date</h2>
+<table class="table">
+  <thead><tr><th>Date</th><th>Total</th></tr></thead>
+  <tbody>
+  {% for r in revenue_data %}
+    <tr><td>{{ r.payment_date__date }}</td><td>{{ r.total }}</td></tr>
+  {% empty %}
+    <tr><td colspan="2">No data</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<h2>By fee type</h2>
+<table class="table">
+  <thead><tr><th>Fee Type</th><th>Total</th><th>Count</th></tr></thead>
+  <tbody>
+  {% for f in fee_type_data %}
+    <tr><td>{{ f.fee_structure__name }}</td><td>{{ f.total }}</td><td>{{ f.count }}</td></tr>
+  {% empty %}
+    <tr><td colspan="3">No data</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

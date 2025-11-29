@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Monitor Progress - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-info text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monitor Progress
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if children_progress %}
+                    <div class="row">
+                        {% for progress in children_progress %}
+                        <div class="col-lg-6 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-user-graduate me-2"></i>
+                                        {{ progress.student.get_full_name|default:progress.student.username }}
+                                        <small class="float-end">{{ progress.relationship }}</small>
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center mb-3">
+                                        <div class="col-4">
+                                            <div class="border rounded p-2">
+                                                <h6 class="mb-0">{{ progress.graded_count }}</h6>
+                                                <small class="text-muted">Graded Subjects</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="border rounded p-2">
+                                                <h6 class="mb-0">
+                                                    {% if progress.average_result %}
+                                                        {{ progress.average_result|floatformat:1 }}
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </h6>
+                                                <small class="text-muted">Average</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="border rounded p-2">
+                                                <h6 class="mb-0">
+                                                    {% if progress.class_rank %}
+                                                        #{{ progress.class_rank }}
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </h6>
+                                                <small class="text-muted">Class Rank</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if progress.subject_results %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Subject</th>
+                                                    <th>Result</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for result in progress.subject_results %}
+                                                <tr>
+                                                    <td>{{ result.subject }}</td>
+                                                    <td><strong>{{ result.score }} / 100</strong></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot class="table-light">
+                                                <tr>
+                                                    <td><strong>Total Result:</strong></td>
+                                                    <td><strong>{{ progress.total_result }}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Average Result:</strong></td>
+                                                    <td><strong>{% if progress.average_result %}{{ progress.average_result|floatformat:1 }} / 100{% else %}N/A{% endif %}</strong></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        No results available yet. Results will appear here once teachers have graded assignments.
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-3">
+                                        <a href="{% url 'child_ranks' progress.student.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-chart-bar me-1"></i>View Detailed Ranks
+                                        </a>
+                                        <a href="{% url 'child_fees' progress.student.id %}" class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-dollar-sign me-1"></i>View Fees
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <h5>No progress data available</h5>
+                        <p>No children are linked to your account, or no progress data has been recorded yet.</p>
+                        <a href="{% url 'request_child_link' %}" class="btn btn-primary">Request To Link A Child</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

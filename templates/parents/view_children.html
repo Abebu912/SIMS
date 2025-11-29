@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}My Children - SIMS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>My Children</h1>
+    {% if children_links %}
+    <div class="row">
+        {% for link in children_links %}
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ link.student.get_full_name }}</h5>
+                    <p class="card-text">Relationship: {{ link.relationship }}</p>
+                    <a href="{% url 'child_ranks' link.student.id %}" class="btn btn-sm btn-outline-primary">View Ranks</a>
+                    <a href="{% url 'child_attendance' link.student.id %}" class="btn btn-sm btn-outline-secondary">Attendance</a>
+                    <a href="{% url 'child_schedule' link.student.id %}" class="btn btn-sm btn-outline-info">Schedule</a>
+                    <a href="{% url 'child_fees' link.student.id %}" class="btn btn-sm btn-outline-success">Fees</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-warning">No children linked to your account.</div>
+    {% endif %}
+</div>
+{% endblock %}

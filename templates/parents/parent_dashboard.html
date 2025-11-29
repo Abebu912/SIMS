@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Parent Dashboard - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">Parent Dashboard</h1>
+            
+            <div class="alert alert-info">
+                <h4>Welcome, {{ user.get_full_name|default:user.username }}!</h4>
+                <p>You are monitoring <strong>{{ total_children }} child{{ total_children|pluralize }}</strong>.</p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="mb-4">
+                <h5>Quick Actions</h5>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'view_children' %}" class="btn btn-outline-primary">View My Children</a>
+                    <a href="{% url 'school_announcements' %}" class="btn btn-outline-secondary">School Announcements</a>
+                    <a href="{% url 'parent_fees_summary' %}" class="btn btn-outline-success">View Fee Statements</a>
+                    <a href="{% url 'parent_progress_overview' %}" class="btn btn-outline-info">Monitor Progress</a>
+                    <a href="{% url 'parent_contact_teachers_overview' %}" class="btn btn-outline-dark">Contact Teachers</a>
+                </div>
+            </div>
+
+            <!-- Children Overview -->
+            <div class="row">
+                {% for child_data in children_data %}
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-child me-2"></i>
+                                {{ child_data.student.get_full_name }}
+                                <small class="float-end">{{ child_data.relationship }}</small>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h6 class="mb-0">{{ child_data.current_courses }}</h6>
+                                        <small class="text-muted">Courses</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h6 class="mb-0">{{ child_data.pending_fees }}</h6>
+                                        <small class="text-muted">Pending Fees</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h6 class="mb-0">{{ child_data.recent_grades|length }}</h6>
+                                        <small class="text-muted">Recent Ranks</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <a href="{% url 'child_ranks' child_data.student.id %}" class="btn btn-sm btn-outline-primary">View Ranks</a>
+                                <a href="{% url 'child_attendance' child_data.student.id %}" class="btn btn-sm btn-outline-secondary">Attendance</a>
+                                <a href="{% url 'child_fees' child_data.student.id %}" class="btn btn-sm btn-outline-success">Fees</a>
+                                <a href="{% url 'contact_teachers' child_data.student.id %}" class="btn btn-sm btn-outline-info">Contact Teachers</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <h5>No children linked to your account</h5>
+                        <p>Please contact the school administration to link your children to your parent account.</p>
+                        <p>
+                            <a href="{% url 'request_child_link' %}" class="btn btn-primary btn-sm">Request To Link A Child</a>
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Policies{% endblock %}
+
+{% block content %}
+<h1>Fee Policies</h1>
+<form method="post">{% csrf_token %}
+  <h3>Create new fee structure</h3>
+  <input type="text" name="name" placeholder="Name" />
+  <input type="text" name="amount" placeholder="Amount" />
+  <textarea name="description" placeholder="Description"></textarea>
+  <button type="submit" name="create">Create</button>
+</form>
+<hr/>
+<h3>Existing Fee Structures</h3>
+<table class="table">
+  <thead><tr><th>Name</th><th>Amount</th><th>Active</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for f in fee_structures %}
+    <tr>
+      <td>{{ f.name }}</td>
+      <td>{{ f.amount }}</td>
+      <td>{{ f.is_active }}</td>
+      <td>
+        <form method="post" style="display:inline">{% csrf_token %}
+          <input type="hidden" name="fee_id" value="{{ f.id }}" />
+          <button type="submit" name="toggle">Toggle</button>
+        </form>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">No fee structures defined</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

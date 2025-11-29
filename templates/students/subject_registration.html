@@ -1,0 +1,1271 @@
+<!-- templates/students/subject_registration.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subject Registration Dashboard - SIMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-clipboard-list me-2"></i>Subject Registration Dashboard
+                        </h4>
+                        <div class="d-flex align-items-center mt-1">
+                            <form method="get" class="d-inline me-3">
+                                <label for="grade-select" class="me-2 text-white-50">Grade</label>
+                                <select id="grade-select" name="grade" class="form-select form-select-sm d-inline-block" style="width:auto;" onchange="this.form.submit()">
+                                    {% for g in grade_choices %}
+                                    <option value="{{ g }}" {% if g == current_grade %}selected{% endif %}>Grade {{ g }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                            <small class="text-white-50">{{ current_academic_year|default:"2025" }}</small>
+                        </div>
+                    </div>
+                    <div class="registration-status">
+                        <span class="badge bg-light text-dark">
+                            <i class="fas fa-clock me-1"></i>
+                            Registration Period: {{ registration_start|date:"M d" }} - {{ registration_end|date:"M d, Y" }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Ensure CSRF token is always available for JS form submissions -->
+                    <form id="csrf-form" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Schedule Conflicts Warning -->
+                    {% if schedule_conflicts %}
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Schedule Conflicts Detected!</h5>
+                        <p>The following subjects have scheduling conflicts:</p>
+                        <ul>
+                            {% for conflict in schedule_conflicts %}
+                            <li>
+                                <strong>{{ conflict.subject1.code }} ({{ conflict.subject1.name }})</strong> 
+                                at {{ conflict.time1 }} conflicts with 
+                                <strong>{{ conflict.subject2.code }} ({{ conflict.subject2.name }})</strong> 
+                                at {{ conflict.time2 }} on {{ conflict.day }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <div class="mt-3">
+                            <form method="POST">
+                                {% csrf_token %}
+                                {% for subject_id in selected_subject_ids %}
+                                <input type="hidden" name="subject_ids" value="{{ subject_id }}">
+                                {% endfor %}
+                                <input type="hidden" name="force_register" value="true">
+                                <button type="submit" class="btn btn-warning me-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Register Anyway
+                                </button>
+                                <a href="{% url 'subject_registration' %}" class="btn btn-secondary">Cancel and Reselect</a>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Registration Progress -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Registration Progress</h6>
+                                            <small class="text-muted">Track your registration status</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="h5 mb-0">{{ enrolled_subjects|length }} / {{ max_subjects|default:"8" }} Subjects</div>
+                                            <small class="text-muted">{{ total_enrolled_credits|default:"0" }} / {{ max_credits|default:"24" }} Credits</small>
+                                        </div>
+                                    </div>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {% widthratio enrolled_subjects|length max_subjects|default:8 100 %}%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Available Subjects -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-4">
+                                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-book me-2"></i>Available Subjects for Grade {{ current_grade|default:"1" }}
+                                    </h5>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-light me-2" id="filter-toggle">
+                                            <i class="fas fa-filter me-1"></i>Filter
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-light" id="search-toggle">
+                                            <i class="fas fa-search me-1"></i>Search
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Search and Filter Controls -->
+                                <div class="card-body border-bottom" id="search-filter-controls" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="subject-search" class="form-label">Search Subjects</label>
+                                            <input type="text" class="form-control" id="subject-search" 
+                                                   placeholder="Search by subject name...">
+                                        </div>
+                                        <!-- Credit filter removed -->
+                                        <div class="col-md-3 mb-3">
+                                            <label for="day-filter" class="form-label">Filter by Day</label>
+                                            <select class="form-select" id="day-filter">
+                                                <option value="all">All Days</option>
+                                                <option value="mon">Monday</option>
+                                                <option value="tue">Tuesday</option>
+                                                <option value="wed">Wednesday</option>
+                                                <option value="thu">Thursday</option>
+                                                <option value="fri">Friday</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 mb-3">
+                                            <label for="teacher-filter" class="form-label">Teacher</label>
+                                            <select class="form-select" id="teacher-filter">
+                                                <option value="all">All Teachers</option>
+                                                {% for subject in available_subjects %}
+                                                    {% if subject.instructor %}
+                                                    <option value="{{ subject.instructor.id }}">{{ subject.instructor.user.get_full_name }}</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body">
+                                    {% if available_subjects %}
+                                        <div class="alert alert-info d-flex align-items-center">
+                                            <i class="fas fa-info-circle me-2 fa-lg"></i>
+                                            <div>
+                                                Select the subjects you want to register for this semester. 
+                                                You can select up to <strong>{{ max_subjects|default:"8" }} subjects</strong> 
+                                                with a maximum of <strong>{{ max_credits|default:"24" }} credits</strong>.
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover" id="subjects-table">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th width="50px">Select</th>
+                                                        <th>Subject Name</th>
+                                                        <th>Type</th>
+                                                        <th>Schedule</th>
+                                                        <th>Instructor</th>
+                                                        <th>Room</th>
+                                                        <th>Capacity</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for subject in available_subjects %}
+                                                    <tr class="subject-row" 
+                                                        data-subject-id="{{ subject.id }}"
+                                                        data-subject-name="{{ subject.name }}"
+                                                        data-subject-type="{{ subject.subject_type }}"
+                                                        data-subject-day="{{ subject.day_of_week }}"
+                                                        data-subject-teacher="{% if subject.instructor %}{{ subject.instructor.id }}{% else %}none{% endif %}"
+                                                        data-subject-schedule="{{ subject.schedule_display }}"
+                                                        data-subject-capacity="{{ subject.current_enrollment }}/{{ subject.max_capacity }}"
+                                                        data-subject-status="{% if subject.id in enrolled_subject_ids %}enrolled{% elif subject.current_enrollment >= subject.max_capacity %}full{% else %}available{% endif %}">
+                                                        <td>
+                                                            <input type="checkbox" class="form-check-input subject-checkbox" 
+                                                                   data-subject-id="{{ subject.id }}" 
+                                                                   data-subject-name="{{ subject.name }}"
+                                                                   data-subject-schedule="{{ subject.schedule_display }}"
+                                                                   {% if subject.id in enrolled_subject_ids %}checked disabled{% endif %}
+                                                                   {% if subject.current_enrollment >= subject.max_capacity %}disabled{% endif %}>
+                                                        </td>
+                                                        <td>
+                                                            {{ subject.name }}
+                                                            {% if subject.prerequisites %}
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-lock me-1"></i>Prerequisites: {{ subject.prerequisites }}
+                                                            </small>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge {% if subject.subject_type == 'core' %}bg-primary{% else %}bg-info{% endif %}">
+                                                                {{ subject.subject_type|title }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {% if subject.schedule_display != "Not scheduled" %}
+                                                                <strong>{{ subject.schedule_display }}</strong>
+                                                                {% if subject.room %}
+                                                                <br><small class="text-muted">{{ subject.room }}</small>
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <span class="text-muted">Not scheduled</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if subject.instructor %}
+                                                                {{ subject.instructor.user.get_full_name }}
+                                                            {% else %}
+                                                                <span class="text-muted">TBA</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>{{ subject.room|default:"TBA" }}</td>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <span class="badge {% if subject.current_enrollment >= subject.max_capacity %}bg-danger{% else %}bg-success{% endif %} me-2">
+                                                                    {{ subject.current_enrollment }}/{{ subject.max_capacity }}
+                                                                </span>
+                                                                <div class="progress flex-grow-1" style="height: 6px; width: 60px;">
+                                                                    <div class="progress-bar {% if subject.current_enrollment >= subject.max_capacity %}bg-danger{% else %}bg-success{% endif %}" 
+                                                                         style="width: {% widthratio subject.current_enrollment subject.max_capacity 100 %}%">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {% if subject.id in enrolled_subject_ids %}
+                                                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>Enrolled</span>
+                                                            {% elif subject.current_enrollment >= subject.max_capacity %}
+                                                                <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Full</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning"><i class="fas fa-clock me-1"></i>Available</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        
+                                        <!-- Selected Subjects Summary -->
+                                        <div class="row mt-4">
+                                            <div class="col-12">
+                                                <div class="card bg-light">
+                                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                                        <h6 class="card-title mb-0">
+                                                            <i class="fas fa-list me-2"></i>Selected Subjects 
+                                                            <span class="badge bg-primary" id="selected-count">0</span>
+                                                            <span class="badge bg-secondary ms-2" id="total-credits">0 credits</span>
+                                                        </h6>
+                                                        <div>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" id="clear-selection">
+                                                                <i class="fas fa-times me-1"></i>Clear All
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div id="selected-subjects-list" class="mb-3">
+                                                            <div class="text-center py-3">
+                                                                <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                                                                <p class="text-muted mb-0">No subjects selected yet. Please select subjects from the table above.</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Schedule Conflicts Preview -->
+                                                        <div id="conflicts-preview" class="alert alert-warning" style="display: none;">
+                                                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Potential Schedule Conflicts</h6>
+                                                            <div id="conflicts-list"></div>
+                                                        </div>
+                                                        
+                                                        <div class="alert alert-warning">
+                                                            <div class="d-flex">
+                                                                <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                                                                <div>
+                                                                    <strong>Important Registration Guidelines:</strong>
+                                                                    <ul class="mb-0 mt-1">
+                                                                        <li>You can select up to <strong>{{ max_subjects|default:"8" }} subjects</strong> per semester</li>
+                                                                        <li>Maximum of <strong>{{ max_credits|default:"24" }} credits</strong> per semester</li>
+                                                                        <li>Registration requires administrative approval</li>
+                                                                        <li>Check for schedule conflicts before submitting</li>
+                                                                        <li>Contact your advisor if you need assistance</li>
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Registration Actions -->
+                                        <div class="row mt-4">
+                                            <div class="col-md-6">
+                                                <div class="d-grid gap-2">
+                                                    <button type="button" class="btn btn-primary btn-lg" id="register-btn" disabled>
+                                                        <i class="fas fa-paper-plane me-2"></i>Submit Registration
+                                                    </button>
+                                                    <small class="text-muted text-center mt-1">Submit your selected subjects for approval</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="d-grid gap-2">
+                                                    <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                                    </a>
+                                                    <button type="button" class="btn btn-outline-info mt-2" id="check-conflicts">
+                                                        <i class="fas fa-calendar-check me-2"></i>Check Schedule Conflicts
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                                            <h4 class="text-muted">No Subjects Available for Registration</h4>
+                                            <p class="text-muted mb-4">There are currently no subjects available for registration. This could be because:</p>
+                                            <div class="row justify-content-center">
+                                                <div class="col-md-8">
+                                                    <div class="alert alert-warning text-start">
+                                                        <ul class="mb-0">
+                                                            <li>All available subjects are already full</li>
+                                                            <li>You are already enrolled in all available subjects</li>
+                                                            <li>Registration period has not started yet</li>
+                                                            <li>No subjects have been configured in the system</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-4">
+                                                <a href="{% url 'student_dashboard' %}" class="btn btn-primary me-2">
+                                                    <i class="fas fa-tachometer-alt me-2"></i>Back to Dashboard
+                                                </a>
+                                                <button type="button" class="btn btn-outline-info" onclick="location.reload()">
+                                                    <i class="fas fa-sync-alt me-2"></i>Refresh Page
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Currently Enrolled Subjects -->
+                    {% if enrolled_subjects %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-check-circle me-2"></i>Currently Enrolled Subjects ({{ current_academic_year|default:"2025" }})
+                                        <span class="badge bg-light text-dark ms-2">{{ enrolled_subjects|length }} subject(s)</span>
+                                    </h5>
+                                    <span class="badge bg-light text-dark">{{ total_enrolled_credits|default:"0" }} Total Credits</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        {% for enrollment in enrolled_subjects %}
+                                        <div class="col-md-6 col-lg-4 mb-3">
+                                            <div class="card h-100 {% if enrollment.status == 'approved' %}border-success{% elif enrollment.status == 'pending' %}border-warning{% else %}border-secondary{% endif %}">
+                                                <div class="card-header {% if enrollment.status == 'approved' %}bg-success{% elif enrollment.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %} text-white py-2">
+                                                    <h6 class="card-title mb-0 d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            {{ enrollment.subject.name }}
+                                                            {% if enrollment.is_auto_assigned %}
+                                                            <span class="badge bg-light text-dark ms-2">Assigned (auto)</span>
+                                                            {% elif enrollment.status == 'assigned' %}
+                                                            <span class="badge bg-light text-dark ms-2">Assigned (auto)</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </h6>
+                                                </div>
+                                                    <div class="card-body">
+                                                    <p class="card-text mb-1">
+                                                        <strong>Type:</strong> 
+                                                        <span class="badge {% if enrollment.subject.subject_type == 'core' %}bg-primary{% else %}bg-info{% endif %}">
+                                                            {{ enrollment.subject.subject_type|title }}
+                                                        </span>
+                                                    </p>
+                                                    <p class="card-text mb-1">
+                                                        <strong>Instructor:</strong> 
+                                                        {% if enrollment.subject.instructor %}
+                                                            {{ enrollment.subject.instructor.user.get_full_name }}
+                                                        {% else %}
+                                                            <span class="text-muted">TBA</span>
+                                                        {% endif %}
+                                                    </p>
+                                                    <p class="card-text mb-1">
+                                                        <strong>Enrolled:</strong> {{ enrollment.enrolled_date|date:"M d, Y" }}
+                                                    </p>
+                                                    <p class="card-text mb-1">
+                                                        <strong>Status:</strong> 
+                                                        <span class="badge {% if enrollment.status == 'approved' %}bg-success{% elif enrollment.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                            {{ enrollment.status|title }}
+                                                        </span>
+                                                        {% if enrollment.is_auto_assigned %}
+                                                            <span class="badge bg-light text-dark ms-2">Assigned (auto)</span>
+                                                        {% elif enrollment.status == 'assigned' %}
+                                                            <span class="badge bg-light text-dark ms-2">Assigned (auto)</span>
+                                                        {% endif %}
+                                                    </p>
+                                                    {% if enrollment.subject.schedule_display != "Not scheduled" %}
+                                                    <p class="card-text mb-0">
+                                                        <strong>Schedule:</strong> {{ enrollment.subject.schedule_display }}
+                                                        {% if enrollment.subject.room %}
+                                                        <br><small class="text-muted">Room: {{ enrollment.subject.room }}</small>
+                                                        {% endif %}
+                                                    </p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Registration Guidelines -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-graduation-cap me-2"></i>Registration Guidelines
+                                    </h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="guidelines-toggle">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body" id="guidelines-content">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-check-circle text-success me-2"></i>What You Can Do:</h6>
+                                            <ul>
+                                                <li>Select up to {{ max_subjects|default:"8" }} subjects per semester</li>
+                                                <li>Maximum of {{ max_credits|default:"24" }} credits per semester</li>
+                                                <li>Register for subjects that fit your schedule</li>
+                                                <li>Check subject capacity before registering</li>
+                                                <li>View prerequisites for each subject</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-exclamation-triangle text-warning me-2"></i>Important Notes:</h6>
+                                            <ul>
+                                                <li>Registration requires administrative approval</li>
+                                                <li>Full subjects will be added to waitlist</li>
+                                                <li>You cannot drop subjects after approval period</li>
+                                                <li>Contact advisor for schedule conflicts</li>
+                                                <li>Ensure you meet prerequisites for selected subjects</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-info">
+                                                <h6><i class="fas fa-question-circle me-2"></i>Need Help?</h6>
+                                                <p class="mb-0">
+                                                    If you have questions about subject selection, prerequisites, or registration process, 
+                                                    please contact your academic advisor or visit the student services office.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for subject registration -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    const selectedCount = document.getElementById('selected-count');
+    const totalCredits = document.getElementById('total-credits');
+    const selectedList = document.getElementById('selected-subjects-list');
+    const registerBtn = document.getElementById('register-btn');
+    const clearBtn = document.getElementById('clear-selection');
+    const filterToggle = document.getElementById('filter-toggle');
+    const searchToggle = document.getElementById('search-toggle');
+    const searchFilterControls = document.getElementById('search-filter-controls');
+    const subjectSearch = document.getElementById('subject-search');
+    const creditFilter = null; // credit filter removed
+    const dayFilter = document.getElementById('day-filter');
+    const teacherFilter = document.getElementById('teacher-filter');
+    const guidelinesToggle = document.getElementById('guidelines-toggle');
+    const guidelinesContent = document.getElementById('guidelines-content');
+    const checkConflictsBtn = document.getElementById('check-conflicts');
+    const conflictsPreview = document.getElementById('conflicts-preview');
+    const conflictsList = document.getElementById('conflicts-list');
+    
+    let selectedSubjects = [];
+    const maxSubjects = {{ max_subjects|default:8 }};
+    const maxCredits = {{ max_credits|default:24 }};
+    
+    // Toggle search and filter controls
+    filterToggle.addEventListener('click', function() {
+        if (searchFilterControls.style.display === 'none') {
+            searchFilterControls.style.display = 'block';
+            filterToggle.classList.add('btn-primary');
+            filterToggle.classList.remove('btn-light');
+        } else {
+            searchFilterControls.style.display = 'none';
+            filterToggle.classList.remove('btn-primary');
+            filterToggle.classList.add('btn-light');
+        }
+    });
+    
+    searchToggle.addEventListener('click', function() {
+        if (searchFilterControls.style.display === 'none') {
+            searchFilterControls.style.display = 'block';
+            searchToggle.classList.add('btn-primary');
+            searchToggle.classList.remove('btn-light');
+            subjectSearch.focus();
+        } else {
+            searchFilterControls.style.display = 'none';
+            searchToggle.classList.remove('btn-primary');
+            searchToggle.classList.add('btn-light');
+        }
+    });
+    
+    // Toggle guidelines
+    guidelinesToggle.addEventListener('click', function() {
+        if (guidelinesContent.style.display === 'none') {
+            guidelinesContent.style.display = 'block';
+            guidelinesToggle.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        } else {
+            guidelinesContent.style.display = 'none';
+            guidelinesToggle.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        }
+    });
+    
+    // Search and filter functionality
+    subjectSearch.addEventListener('input', filterSubjects);
+    // creditFilter removed
+    dayFilter.addEventListener('change', filterSubjects);
+    teacherFilter.addEventListener('change', filterSubjects);
+    
+    function filterSubjects() {
+        const searchTerm = subjectSearch.value.toLowerCase();
+        const creditValue = 'all';
+        const dayValue = dayFilter.value;
+        const teacherValue = teacherFilter.value;
+        
+        document.querySelectorAll('.subject-row').forEach(row => {
+            const subjectName = row.dataset.subjectName.toLowerCase();
+            const subjectCode = '';
+            const subjectCredits = '';
+            const subjectDay = row.dataset.subjectDay;
+            const subjectTeacher = row.dataset.subjectTeacher;
+            
+            const matchesSearch = subjectName.includes(searchTerm);
+            const matchesCredit = true;
+            const matchesDay = dayValue === 'all' || subjectDay === dayValue;
+            const matchesTeacher = teacherValue === 'all' || subjectTeacher === teacherValue;
+            
+            if (matchesSearch && matchesCredit && matchesDay && matchesTeacher) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    // Real-time conflict checking
+    function checkForConflicts() {
+        const selectedIds = selectedSubjects.map(s => s.id);
+        
+        if (selectedIds.length < 2) {
+            conflictsPreview.style.display = 'none';
+            return;
+        }
+        
+        // AJAX call to check conflicts
+        fetch('{% url "check_schedule_conflicts" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'subject_ids[]': selectedIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.has_conflicts) {
+                conflictsPreview.style.display = 'block';
+                let conflictsHtml = '<ul class="mb-0">';
+                data.conflicts.forEach(conflict => {
+                    conflictsHtml += `
+                        <li>
+                            <strong>${conflict.subject1_code} (${conflict.subject1_name})</strong> 
+                            at ${conflict.time1} conflicts with 
+                            <strong>${conflict.subject2_code} (${conflict.subject2_name})</strong> 
+                            at ${conflict.time2} on ${conflict.day}
+                        </li>
+                    `;
+                });
+                conflictsHtml += '</ul>';
+                conflictsList.innerHTML = conflictsHtml;
+            } else {
+                conflictsPreview.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking conflicts:', error);
+        });
+    }
+    
+    function updateSelectedSubjects() {
+        selectedSubjects = [];
+        let totalCreditsValue = 0;
+
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked && !checkbox.disabled) {
+                const subject = {
+                    id: checkbox.dataset.subjectId,
+                    name: checkbox.dataset.subjectName,
+                    credits: 0,
+                    schedule: checkbox.dataset.subjectSchedule
+                };
+                selectedSubjects.push(subject);
+            }
+        });
+
+        // Update counters
+        selectedCount.textContent = selectedSubjects.length;
+        totalCredits.textContent = '0 credits';
+
+        // Update selected subjects list
+        if (selectedSubjects.length > 0) {
+            let html = '<div class="row">';
+            selectedSubjects.forEach(subject => {
+                html += `
+                    <div class="col-md-6 mb-2">
+                        <div class="alert alert-success py-2 mb-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-check me-2"></i>
+                                <strong>${subject.name}</strong>
+                                <br><small class="text-muted">${subject.schedule}</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="deselectSubject('${subject.id}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            selectedList.innerHTML = html;
+        } else {
+            selectedList.innerHTML = `
+                <div class="text-center py-3">
+                    <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">No subjects selected yet. Please select subjects from the table above.</p>
+                </div>
+            `;
+        }
+
+        // Enable/disable register button based on selection and limits
+        const hasSelection = selectedSubjects.length > 0;
+        const withinLimit = selectedSubjects.length <= maxSubjects;
+
+        registerBtn.disabled = !hasSelection || !withinLimit;
+
+        // Update button text with validation
+        if (!hasSelection) {
+            registerBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Registration';
+            registerBtn.classList.remove('btn-danger');
+            registerBtn.classList.add('btn-primary');
+        } else if (!withinLimit) {
+            registerBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Exceeds Limits';
+            registerBtn.classList.remove('btn-primary');
+            registerBtn.classList.add('btn-danger');
+        } else {
+            registerBtn.innerHTML = `<i class="fas fa-paper-plane me-2"></i>Register ${selectedSubjects.length} Subject(s)`;
+            registerBtn.classList.remove('btn-danger');
+            registerBtn.classList.add('btn-primary');
+        }
+
+        // Check for conflicts in real-time
+        checkForConflicts();
+    }
+    
+    // Function to deselect individual subject
+    window.deselectSubject = function(subjectId) {
+        const checkbox = document.querySelector(`.subject-checkbox[data-subject-id="${subjectId}"]`);
+        if (checkbox) {
+            checkbox.checked = false;
+            updateSelectedSubjects();
+        }
+    };
+    
+    // Add event listeners to checkboxes
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedSubjects);
+    });
+    
+    // Clear selection button
+    clearBtn.addEventListener('click', function() {
+        if (selectedSubjects.length > 0) {
+            if (confirm('Are you sure you want to clear all selected subjects?')) {
+                checkboxes.forEach(checkbox => {
+                    if (!checkbox.disabled) {
+                        checkbox.checked = false;
+                    }
+                });
+                updateSelectedSubjects();
+            }
+        }
+    });
+    
+    // Check for schedule conflicts
+    checkConflictsBtn.addEventListener('click', function() {
+        if (selectedSubjects.length === 0) {
+            alert('Please select at least one subject to check for schedule conflicts.');
+            return;
+        }
+        
+        checkForConflicts();
+        if (conflictsPreview.style.display === 'block') {
+            conflictsPreview.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert('No schedule conflicts detected!');
+        }
+    });
+    
+    // Register button click handler
+    registerBtn.addEventListener('click', function() {
+        const selectedSubjectIds = selectedSubjects.map(subject => subject.id);
+        const totalCreditsValue = selectedSubjects.reduce((sum, subject) => sum + subject.credits, 0);
+        
+                if (selectedSubjectIds.length > 0) {
+            const subjectList = selectedSubjects.map(subject => 
+                `• ${subject.name} \n  ${subject.schedule}`
+            ).join('\n');
+            
+            const confirmationMessage = 
+                `Please confirm your subject registration for {{ current_academic_year|default:"2025" }}:\n\n` +
+                `${subjectList}\n\n` +
+                `Total: ${selectedSubjects.length} subjects, ${totalCreditsValue} credits\n\n` +
+                `Do you want to proceed with registration?`;
+            
+            if (confirm(confirmationMessage)) {
+                registerSubjects(selectedSubjectIds);
+            }
+        }
+    });
+    
+    function registerSubjects(subjectIds) {
+        // Show loading state
+        const registerBtn = document.getElementById('register-btn');
+        const originalText = registerBtn.innerHTML;
+        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        registerBtn.disabled = true;
+        
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "subject_registration" %}';
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // Add subject IDs
+        subjectIds.forEach(subjectId => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'subject_ids';
+            input.value = subjectId;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Initialize
+    updateSelectedSubjects();
+});
+</script>
+
+<style>
+.subject-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.subject-checkbox:disabled + td {
+    opacity: 0.6;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+}
+
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+    transform: translateY(-1px);
+    transition: all 0.15s ease-in-out;
+}
+
+#register-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+#selected-subjects-list .alert {
+    border-left: 4px solid #198754;
+    transition: all 0.15s ease-in-out;
+}
+
+#selected-subjects-list .alert:hover {
+    transform: translateX(5px);
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.subject-row {
+    transition: all 0.15s ease-in-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .card-header h5, .card-header h4 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+<!-- JavaScript for subject registration -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    const selectedCount = document.getElementById('selected-count');
+    const totalCredits = document.getElementById('total-credits');
+    const selectedList = document.getElementById('selected-subjects-list');
+    const registerBtn = document.getElementById('register-btn');
+    const clearBtn = document.getElementById('clear-selection');
+    const filterToggle = document.getElementById('filter-toggle');
+    const searchToggle = document.getElementById('search-toggle');
+    const searchFilterControls = document.getElementById('search-filter-controls');
+    const subjectSearch = document.getElementById('subject-search');
+    const creditFilter = null; // credit filter removed
+    const dayFilter = document.getElementById('day-filter');
+    const teacherFilter = document.getElementById('teacher-filter');
+    const guidelinesToggle = document.getElementById('guidelines-toggle');
+    const guidelinesContent = document.getElementById('guidelines-content');
+    const checkConflictsBtn = document.getElementById('check-conflicts');
+    const conflictsPreview = document.getElementById('conflicts-preview');
+    const conflictsList = document.getElementById('conflicts-list');
+    
+    let selectedSubjects = [];
+    const maxSubjects = {{ max_subjects|default:8 }};
+    const maxCredits = {{ max_credits|default:24 }};
+    
+    // Create a hidden form for submission
+    const hiddenForm = document.createElement('form');
+    hiddenForm.method = 'POST';
+    hiddenForm.action = '{% url "subject_registration" %}';
+    hiddenForm.style.display = 'none';
+    
+    // Add CSRF token to the form
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken.value;
+        hiddenForm.appendChild(csrfInput);
+    }
+    
+    document.body.appendChild(hiddenForm);
+    
+    // Toggle search and filter controls
+    filterToggle.addEventListener('click', function() {
+        if (searchFilterControls.style.display === 'none') {
+            searchFilterControls.style.display = 'block';
+            filterToggle.classList.add('btn-primary');
+            filterToggle.classList.remove('btn-light');
+        } else {
+            searchFilterControls.style.display = 'none';
+            filterToggle.classList.remove('btn-primary');
+            filterToggle.classList.add('btn-light');
+        }
+    });
+    
+    searchToggle.addEventListener('click', function() {
+        if (searchFilterControls.style.display === 'none') {
+            searchFilterControls.style.display = 'block';
+            searchToggle.classList.add('btn-primary');
+            searchToggle.classList.remove('btn-light');
+            subjectSearch.focus();
+        } else {
+            searchFilterControls.style.display = 'none';
+            searchToggle.classList.remove('btn-primary');
+            searchToggle.classList.add('btn-light');
+        }
+    });
+    
+    // Toggle guidelines
+    guidelinesToggle.addEventListener('click', function() {
+        if (guidelinesContent.style.display === 'none') {
+            guidelinesContent.style.display = 'block';
+            guidelinesToggle.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        } else {
+            guidelinesContent.style.display = 'none';
+            guidelinesToggle.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        }
+    });
+    
+    // Search and filter functionality
+    subjectSearch.addEventListener('input', filterSubjects);
+    // creditFilter removed
+    dayFilter.addEventListener('change', filterSubjects);
+    teacherFilter.addEventListener('change', filterSubjects);
+    
+    function filterSubjects() {
+        const searchTerm = subjectSearch.value.toLowerCase();
+        const creditValue = 'all';
+        const dayValue = dayFilter.value;
+        const teacherValue = teacherFilter.value;
+        
+        document.querySelectorAll('.subject-row').forEach(row => {
+            const subjectName = row.dataset.subjectName.toLowerCase();
+            const subjectCode = '';
+            const subjectCredits = '';
+            const subjectDay = row.dataset.subjectDay;
+            const subjectTeacher = row.dataset.subjectTeacher;
+            
+            const matchesSearch = subjectName.includes(searchTerm);
+            const matchesCredit = true;
+            const matchesDay = dayValue === 'all' || subjectDay === dayValue;
+            const matchesTeacher = teacherValue === 'all' || subjectTeacher === teacherValue;
+            
+            if (matchesSearch && matchesCredit && matchesDay && matchesTeacher) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    // Real-time conflict checking
+    function checkForConflicts() {
+        const selectedIds = selectedSubjects.map(s => s.id);
+        
+        if (selectedIds.length < 2) {
+            conflictsPreview.style.display = 'none';
+            return;
+        }
+        
+        // AJAX call to check conflicts
+        fetch('{% url "check_schedule_conflicts" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'subject_ids[]': selectedIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.has_conflicts) {
+                conflictsPreview.style.display = 'block';
+                let conflictsHtml = '<ul class="mb-0">';
+                data.conflicts.forEach(conflict => {
+                    conflictsHtml += `
+                        <li>
+                            <strong>${conflict.subject1_code} (${conflict.subject1_name})</strong> 
+                            at ${conflict.time1} conflicts with 
+                            <strong>${conflict.subject2_code} (${conflict.subject2_name})</strong> 
+                            at ${conflict.time2} on ${conflict.day}
+                        </li>
+                    `;
+                });
+                conflictsHtml += '</ul>';
+                conflictsList.innerHTML = conflictsHtml;
+            } else {
+                conflictsPreview.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking conflicts:', error);
+        });
+    }
+    
+    function updateSelectedSubjects() {
+        selectedSubjects = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked && !checkbox.disabled) {
+                const subject = {
+                    id: checkbox.dataset.subjectId,
+                    name: checkbox.dataset.subjectName,
+                    credits: 0,
+                    schedule: checkbox.dataset.subjectSchedule
+                };
+                selectedSubjects.push(subject);
+            }
+        });
+
+        // Update counters
+        selectedCount.textContent = selectedSubjects.length;
+        totalCredits.textContent = '0 credits';
+
+        // Update selected subjects list
+        if (selectedSubjects.length > 0) {
+            let html = '<div class="row">';
+            selectedSubjects.forEach(subject => {
+                html += `
+                    <div class="col-md-6 mb-2">
+                        <div class="alert alert-success py-2 mb-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-check me-2"></i>
+                                <strong>${subject.name}</strong>
+                                <br><small class="text-muted">${subject.schedule}</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="deselectSubject('${subject.id}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            selectedList.innerHTML = html;
+        } else {
+            selectedList.innerHTML = `
+                <div class="text-center py-3">
+                    <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">No subjects selected yet. Please select subjects from the table above.</p>
+                </div>
+            `;
+        }
+
+        // Enable/disable register button based on selection and limits
+        const hasSelection = selectedSubjects.length > 0;
+        const withinLimit = selectedSubjects.length <= maxSubjects;
+
+        registerBtn.disabled = !hasSelection || !withinLimit;
+
+        // Update button text with validation
+        if (!hasSelection) {
+            registerBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Registration';
+            registerBtn.classList.remove('btn-danger');
+            registerBtn.classList.add('btn-primary');
+        } else if (!withinLimit) {
+            registerBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Exceeds Limits';
+            registerBtn.classList.remove('btn-primary');
+            registerBtn.classList.add('btn-danger');
+        } else {
+            registerBtn.innerHTML = `<i class="fas fa-paper-plane me-2"></i>Register ${selectedSubjects.length} Subject(s)`;
+            registerBtn.classList.remove('btn-danger');
+            registerBtn.classList.add('btn-primary');
+        }
+
+        // Check for conflicts in real-time
+        checkForConflicts();
+    }
+    
+    // Function to deselect individual subject
+    window.deselectSubject = function(subjectId) {
+        const checkbox = document.querySelector(`.subject-checkbox[data-subject-id="${subjectId}"]`);
+        if (checkbox) {
+            checkbox.checked = false;
+            updateSelectedSubjects();
+        }
+    };
+    
+    // Add event listeners to checkboxes
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedSubjects);
+    });
+    
+    // Clear selection button
+    clearBtn.addEventListener('click', function() {
+        if (selectedSubjects.length > 0) {
+            if (confirm('Are you sure you want to clear all selected subjects?')) {
+                checkboxes.forEach(checkbox => {
+                    if (!checkbox.disabled) {
+                        checkbox.checked = false;
+                    }
+                });
+                updateSelectedSubjects();
+            }
+        }
+    });
+    
+    // Check for schedule conflicts
+    checkConflictsBtn.addEventListener('click', function() {
+        if (selectedSubjects.length === 0) {
+            alert('Please select at least one subject to check for schedule conflicts.');
+            return;
+        }
+        
+        checkForConflicts();
+        if (conflictsPreview.style.display === 'block') {
+            conflictsPreview.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert('No schedule conflicts detected!');
+        }
+    });
+    
+    // FIXED: Register button click handler - SIMPLIFIED VERSION
+    registerBtn.addEventListener('click', function() {
+        const selectedSubjectIds = selectedSubjects.map(subject => subject.id);
+        const totalCreditsValue = selectedSubjects.reduce((sum, subject) => sum + subject.credits, 0);
+        
+        if (selectedSubjectIds.length === 0) {
+            alert('Please select at least one subject to register.');
+            return;
+        }
+        
+        const subjectList = selectedSubjects.map(subject => `• ${subject.name}`).join('\n');
+        
+        const confirmationMessage = 
+            `Please confirm your subject registration:\n\n` +
+            `${subjectList}\n\n` +
+            `Total: ${selectedSubjects.length} subjects, ${totalCreditsValue} credits\n\n` +
+            `Do you want to proceed with registration?`;
+        
+        if (confirm(confirmationMessage)) {
+            // Show loading state
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            registerBtn.disabled = true;
+            
+            // Clear previous inputs
+            const existingInputs = hiddenForm.querySelectorAll('input[name="subject_ids"]');
+            existingInputs.forEach(input => input.remove());
+            
+            // Add selected subject IDs to form
+            selectedSubjectIds.forEach(subjectId => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'subject_ids';
+                input.value = subjectId;
+                hiddenForm.appendChild(input);
+            });
+            
+            // Submit the form
+            console.log('Submitting form with subjects:', selectedSubjectIds);
+            hiddenForm.submit();
+        }
+    });
+    
+    // Alternative: Simple form submission without confirmation
+    window.quickRegister = function() {
+        const selectedSubjectIds = selectedSubjects.map(subject => subject.id);
+        
+        if (selectedSubjectIds.length === 0) {
+            alert('Please select at least one subject to register.');
+            return;
+        }
+        
+        // Show loading state
+        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        registerBtn.disabled = true;
+        
+        // Clear previous inputs
+        const existingInputs = hiddenForm.querySelectorAll('input[name="subject_ids"]');
+        existingInputs.forEach(input => input.remove());
+        
+        // Add selected subject IDs to form
+        selectedSubjectIds.forEach(subjectId => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'subject_ids';
+            input.value = subjectId;
+            hiddenForm.appendChild(input);
+        });
+        
+        // Submit the form
+        console.log('Quick registering subjects:', selectedSubjectIds);
+        hiddenForm.submit();
+    };
+    
+    // Initialize
+    updateSelectedSubjects();
+    
+    // Debug: Log when script loads
+    console.log('Subject registration script loaded successfully');
+});
+</script>
+</style>
+{% endblock %}

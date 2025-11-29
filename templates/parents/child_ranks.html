@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Child Ranks</title>
+</head>
+<body>
+    <h1>Ranks for {{ child.get_full_name|default:child.username }}</h1>
+    <p>Relationship: {{ relationship }}</p>
+
+    {% if subject_results %}
+    <ul>
+        {% for item in subject_results %}
+        <li>{{ item.subject.code }} - {{ item.subject.name }} — Score: {{ item.score|default:'N/A' }}</li>
+        {% endfor %}
+    </ul>
+    <p><strong>Average (numeric):</strong> {% if average is not None %}{{ average }}{% else %}-{% endif %}</p>
+    <p><strong>Class Rank:</strong> {% if class_rank %}{{ class_rank }}{% else %}-{% endif %}</p>
+    {% else %}
+    <p>No ranks to show for this student.</p>
+    {% endif %}
+</body>
+</html>

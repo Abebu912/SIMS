@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "password": "admin123",
+    "role": "superuser",
+    "email": "admin@system.com"
+  },
+  "abebu": {
+    "password": "12345678",
+    "role": "user",
+    "email": "abebuwubete099@gmail.com"
+  }
+}

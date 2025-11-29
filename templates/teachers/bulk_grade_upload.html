@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Upload Grades{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Bulk Upload Grades</h2>
+  <p>Upload a CSV with two columns: student_id,grade</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <input type="file" name="grade_file" class="form-control" required>
+    </div>
+    <button class="btn btn-primary" type="submit">Upload</button>
+    <a href="{% url 'enter_grades' %}?subject_id={{ subject.id }}" class="btn btn-secondary">Back</a>
+  </form>
+</div>
+{% endblock %}

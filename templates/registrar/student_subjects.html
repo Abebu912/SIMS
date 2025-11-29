@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Student Subjects - {{ student.get_full_name }}</h2>
+<p>Grade: {{ student_profile.grade_level }} • Academic Year: {{ current_year }} • Semester: {{ current_semester }}</p>
+
+<h3>Enrolled Subjects</h3>
+{% if enrolled_subjects %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Instructor</th>
+        <th>Schedule</th>
+        <th>Credits</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in enrolled_subjects %}
+      <tr>
+        <td>{{ e.subject.code }}</td>
+        <td>{{ e.subject.name }}</td>
+        <td>{% if e.subject.instructor %}{{ e.subject.instructor.user.get_full_name }}{% else %}TBA{% endif %}</td>
+        <td>{{ e.subject.schedule_display }}</td>
+        <td>{{ e.subject.credit_hours }}</td>
+        <td>{{ e.get_status_display }}</td>
+        <td>
+          <form method="post" action="{% url 'approve_single_registration' e.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-success">Approve</button>
+          </form>
+          <form method="post" action="{% url 'reject_single_registration' e.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-danger">Reject</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>This student has no enrollments for the selected term.</p>
+{% endif %}
+
+<h3 class="mt-4">Available Subjects (for Grade {{ student_profile.grade_level }})</h3>
+{% if available_subjects %}
+  <ul>
+    {% for s in available_subjects %}
+      <li>{{ s.code }} - {{ s.name }} (Slots: {{ s.available_slots }})</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No available subjects for this grade.</p>
+{% endif %}
+
+<a href="{% url 'manage_academic_records' %}" class="btn btn-secondary mt-3">Back to Records</a>
+{% endblock %}
