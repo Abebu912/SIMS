@@ -10,14 +10,22 @@
 </div>
 <style>
   :root{--primary:#245aa2;--accent:#f26322;--muted:#f6f7f9}
-  .hero{background:linear-gradient(135deg,#1f4f9f 0%,#2859b8 60%);color:#fff;padding:80px 0;transition:background .45s ease,transform .35s ease}
-  .hero:hover{background:linear-gradient(135deg,#17438a 0%,#1f66d1 60%);transform:translateY(-4px)}
+  /* Hero uses the site media background image with a translucent gradient overlay */
+  .hero{
+    color:#fff;
+    padding:80px 0;
+    transition:background .45s ease,transform .35s ease;
+    /* Make hero transparent so the full-page background image shows clearly */
+    background: transparent;
+  }
+  .hero:hover{transform:translateY(-4px)}
   .brand-logo{display:flex;align-items:center;gap:.6rem;font-weight:700;color:#fff}
   .brand-logo svg{height:36px;width:36px}
   .logo-marquee-wrapper{overflow:hidden;max-width:360px}
   .logo-marquee{display:inline-block;color:#fff;opacity:.95;white-space:nowrap;animation:marquee 14s linear infinite}
   /* Top marquee (left -> right) */
-  .top-marquee{width:100%;background:var(--accent);color:#fff;overflow:hidden;white-space:nowrap}
+  /* Make marquee transparent so the full-page image shows through */
+  .top-marquee{width:100%;background:transparent;color:rgba(255,255,255,0.95);overflow:hidden;white-space:nowrap}
   .top-marquee .marquee-inner{display:inline-block;padding:8px 0;font-weight:600;letter-spacing:.6px;animation:marquee-lr 14s linear infinite}
   @keyframes marquee-lr{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
   @keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
@@ -26,7 +34,18 @@
   .role-card{border-radius:12px;border:1px solid #eef2f6;padding:28px;background:#fff;transition:all .2s}
   .role-card:hover{transform:translateY(-6px);box-shadow:0 10px 20px rgba(0,0,0,.06)}
   .contact-card{border-radius:12px;background:#fff;padding:20px;box-shadow:0 6px 18px rgba(20,30,60,.06)}
-  .footer{background:#2f3438;color:#fff;padding:48px 0}
+  /* Header / Navbar: transparent so background image is visible behind it */
+  header.bg-white, .navbar.bg-white, .navbar, header {background: transparent !important; box-shadow: none !important}
+  .navbar .nav-link, header .nav-link {color: rgba(255,255,255,0.95) !important}
+  .navbar-brand, .brand-logo {color: rgba(255,255,255,0.98); font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+
+    /* Footer transparent to show the full image through */
+    .footer{background:transparent;color:rgba(255,255,255,0.95);padding:48px 0}
+
+    /* Do NOT override all `.bg-white` or inline background styles globally —
+      that made cards and content too faint. Keep cards slightly opaque for
+      readability while allowing the overall page background to show. */
+    .feature-card, .role-card, .contact-card { background: rgba(255,255,255,0.95); }
   .accent{color:var(--accent)}
   .cta-btn{background:var(--accent);border:none}
   @media(max-width:767px){.hero{padding:48px 0}}
@@ -37,17 +56,7 @@
   <div class="container">
     <nav class="navbar navbar-expand-lg navbar-light">
       <a class="navbar-brand d-flex align-items-center" href="#">
-        <span class="brand-logo">
-          <!-- Inline SVG school logo -->
-          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-            <path fill="#245aa2" d="M32 6L6 18v10c0 10 10 18 26 24 16-6 26-14 26-24V18L32 6z"></path>
-            <rect x="26" y="26" width="12" height="14" rx="1" fill="#fff"/>
-          </svg>
-          <span class="ms-2">Ginba Junior School</span>
-        </span>
-        <div class="ms-3 logo-marquee-wrapper d-none d-md-block">
-          <div class="logo-marquee">STUDENT INFORMATION MANAGEMENT SYSTEM AT GINBA JUNIER SCHOLL</div>
-        </div>
+        <span class="brand-logo">Ginba Junior School</span>
       </a>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#homeNav">
@@ -72,7 +81,7 @@
   <div class="container">
     <div class="row align-items-center">
       <div class="col-lg-6">
-        <h1 class="display-5 fw-bold">SIMS — Student Information Management</h1>
+        <h1 class="display-5 fw-bold">SIMS:Student Information Management System</h1>
         <p class="lead mt-3 mb-4">Empowering education at Ginba Junior School with comprehensive digital solutions for students, teachers, parents, and administrators.</p>
         <div class="d-flex gap-2">
           <a href="{% url 'register' %}" class="btn btn-light btn-lg">Get Started</a>
@@ -94,9 +103,9 @@
           </div>
         </div>
       </div>
-      <div class="col-lg-6 text-center mt-4 mt-lg-0">
-        {# Use media image uploaded to MEDIA_ROOT (e.g. media/image.png). #}
-        <img src="{{ MEDIA_URL }}image.png" alt="Ginba Junior School" class="img-fluid" style="max-height:700px;width:auto;filter:drop-shadow(0 10px 30px rgba(0,0,0,.12));">
+      <div class="col-lg-6 text-center mt-4 mt-lg-0 d-none d-lg-block">
+        <!-- Decorative column removed; hero uses the media background image. Keep this column hidden on small screens. -->
+        
       </div>
     </div>
   </div>
