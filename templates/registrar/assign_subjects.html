@@ -101,54 +101,9 @@ function getCSRFToken() {
   return el ? el.value : '';
 }
 
-// Handle assign form submission via AJAX
-document.getElementById('assign-form').addEventListener('submit', function(e){
-  e.preventDefault();
-  const form = e.currentTarget;
-  const formData = new FormData(form);
-  // ensure academic_year and semester values are present
-  const csrf = getCSRFToken();
-
-  fetch(window.location.pathname + window.location.search, {
-    method: 'POST',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-CSRFToken': csrf,
-    },
-    body: formData
-  }).then(r => r.json())
-  .then(data => {
-    if(data.success) {
-      // Move checked available subjects into assigned list visually
-      const checked = document.querySelectorAll('.subject-checkbox:checked');
-      checked.forEach(cb => {
-        const label = cb.closest('label');
-        if(!label) return;
-        const subjectId = label.getAttribute('data-subject-id') || cb.value;
-        // Remove from available
-        label.remove();
-        // Append placeholder assigned item
-        const assignedList = document.getElementById('assigned-subjects');
-        const div = document.createElement('div');
-        div.className = 'list-group-item d-flex justify-content-between align-items-center assigned-item';
-        div.setAttribute('data-subject-id', subjectId);
-        div.innerHTML = '<div><strong>Subject</strong></div><div><button type="button" class="btn btn-sm btn-outline-danger unassign-btn" data-subject-id="'+subjectId+'">Unassign</button></div>';
-        assignedList.prepend(div);
-      });
-      // Show server-provided message (if any)
-      if(data.message) {
-        alert(data.message);
-      } else {
-        alert('Assigned ' + (data.assigned || 0) + ' subject(s).');
-      }
-    } else {
-      alert(data.message || 'Assignment failed.');
-    }
-  }).catch(err => {
-    console.error(err);
-    alert('An error occurred while assigning.');
-  });
-});
+// The assign form now performs a normal POST (non-AJAX) so the registrar
+// success message will be displayed on the dashboard. AJAX handling was
+// removed to simplify the flow and avoid JS-related failures.
 
 // Delegate clicks on unassign buttons
 document.addEventListener('click', function(e){
@@ -182,5 +137,46 @@ document.addEventListener('click', function(e){
     alert('Error while unassigning');
   });
 });
+
+// Fallback: ensure assign button submits the form if nothing else does
+(function(){
+  try{
+    const assignBtn = document.getElementById('assign-submit');
+    const assignForm = document.getElementById('assign-form');
+    if(assignBtn && assignForm){
+      assignBtn.addEventListener('click', function(e){
+        // Basic client-side validation to mirror server requirements
+        const teacher = assignForm.querySelector('select[name="teacher_user_id"]');
+        const year = assignForm.querySelector('input[name="academic_year"]');
+        const sem = assignForm.querySelector('select[name="semester"]');
+        if(teacher && !teacher.value){
+          e.preventDefault();
+          alert('Please select a teacher to assign.');
+          teacher.focus();
+          return;
+        }
+        if(year && !year.value){
+          e.preventDefault();
+          alert('Please enter the academic year.');
+          year.focus();
+          return;
+        }
+        if(sem && !sem.value){
+          e.preventDefault();
+          alert('Please select a semester.');
+          sem.focus();
+          return;
+        }
+
+        // If the button is inside the form and default wasn't prevented elsewhere,
+        // the form will submit naturally. To be safe, call submit().
+        // Use a tiny timeout to allow any other click handlers to run first.
+        setTimeout(()=>{
+          try{ assignForm.submit(); }catch(err){ console.error('Submit failed', err); }
+        }, 10);
+      });
+    }
+  }catch(ex){ console.error('Assign fallback handler error', ex); }
+})();
 </script>
 {% endblock %}

@@ -71,7 +71,9 @@
         {% endfor %}
       </tbody>
     </table>
+    <input type="hidden" name="final_submit" id="final-submit-input" value="0">
     <button class="btn btn-primary" type="submit">Save Scores</button>
+    <button type="button" class="btn btn-success ms-2" id="finalize-btn">Submit Final Grades</button>
   </form>
   <script>
     // get CSRF token from cookie
@@ -192,6 +194,37 @@
         });
       });
     });
+
+    // Finalize button: set hidden field and submit with confirmation
+    (function(){
+      const finalizeBtn = document.getElementById('finalize-btn');
+      const finalInput = document.getElementById('final-submit-input');
+      if(finalizeBtn && finalInput){
+        finalizeBtn.addEventListener('click', function(){
+          if(!confirm('Are you sure you want to submit final grades? This will mark the saved grades as finalized and prevent further edits.')) return;
+          finalInput.value = '1';
+          // submit the form
+          finalizeBtn.closest('form').submit();
+        });
+      }
+    })();
+
+    // If subject is finalized, disable inputs and hide save buttons
+    (function(){
+      const subjectFinalized = {{ subject_finalized|yesno:'true,false' }};
+      if(subjectFinalized){
+        // Disable component inputs, totals and avg fields
+        document.querySelectorAll('.comp-input').forEach(function(i){ i.disabled = true; });
+        document.querySelectorAll('input[id^="total-"]').forEach(function(i){ i.readOnly = true; });
+        document.querySelectorAll('input[id^="avg-"]').forEach(function(i){ i.disabled = true; });
+        // Hide per-row save buttons and finalization button
+        document.querySelectorAll('.save-row').forEach(function(b){ b.style.display = 'none'; });
+        const fbtn = document.getElementById('finalize-btn'); if(fbtn) fbtn.style.display = 'none';
+        // Replace Save Scores with disabled state
+        const saveBtns = document.querySelectorAll('button[type="submit"]');
+        saveBtns.forEach(function(b){ b.disabled = true; b.textContent = 'Finalized'; });
+      }
+    })();
   </script>
   {% else %}
     <p>Please select a subject to enter scores.</p>

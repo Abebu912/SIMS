@@ -414,6 +414,11 @@ def enter_grades(request):
         # load existing grades for this subject to prefill the form
         existing_grades_qs = Grade.objects.filter(subject=subject).select_related('student')
         existing_grades = {g.student.id: g.score for g in existing_grades_qs}
+        # Determine whether the subject has been finalized (teacher submitted final grades)
+        try:
+            subject_finalized = all((g.remarks and 'finalized' in g.remarks.lower()) for g in existing_grades_qs) if existing_grades_qs else False
+        except Exception:
+            subject_finalized = False
         existing_components = {}
         for g in existing_grades_qs:
             existing_components[g.student.id] = {
@@ -430,6 +435,15 @@ def enter_grades(request):
             en.mid_score = comps.get('mid')
             en.assignment_score = comps.get('assignment')
             en.final_score = comps.get('final')
+            # If overall score is missing but component scores exist, compute a total to display
+            try:
+                if en.current_score is None:
+                    comp_vals = [en.quiz_score, en.mid_score, en.assignment_score, en.final_score]
+                    if any(v is not None for v in comp_vals):
+                        total_calc = sum((int(v) if v is not None else 0) for v in comp_vals)
+                        en.current_score = max(0, min(100, total_calc))
+            except Exception:
+                pass
 
         # compute per-student average across this teacher's subjects for the selected term
         student_ids = [en.student.id for en in enrollments]
@@ -474,6 +488,7 @@ def enter_grades(request):
 
         if request.method == 'POST':
             updated = 0
+            final_submit = request.POST.get('final_submit') == '1'
             for enrollment in enrollments:
                     # Support component-based input (quiz, mid, assignment, final)
                     quiz_val = request.POST.get(f'quiz_{enrollment.student.id}')
@@ -505,6 +520,25 @@ def enter_grades(request):
                         # legacy path: use single score field
                         total = parse_int(grade_value, 0)
                         quiz = mid = assignment = final = None
+                        # allocate components proportionally so they display after saving
+                        try:
+                            total_val = total
+                            weights = {'quiz':5, 'mid':25, 'assignment':20, 'final':50}
+                            alloc = {}
+                            for k,w in weights.items():
+                                v = int(round(total_val * (w/100.0)))
+                                v = max(0, min(w, v))
+                                alloc[k] = v
+                            s = sum(alloc.values())
+                            diff = total_val - s
+                            if diff != 0:
+                                alloc['final'] = max(0, min(weights['final'], alloc['final'] + diff))
+                            quiz = alloc['quiz']
+                            mid = alloc['mid']
+                            assignment = alloc['assignment']
+                            final = alloc['final']
+                        except Exception:
+                            pass
                     else:
                         # if override average provided (teacher manually edited average), use it to set total
                         if override_avg_val is not None and override_avg_val != '':
@@ -548,6 +582,16 @@ def enter_grades(request):
                             grade_obj.final_exam_score = final
                         grade_obj.save()
 
+                    # If this POST is a final submission, mark the grade as finalized
+                    if final_submit:
+                        try:
+                            existing_remarks = (grade_obj.remarks or '')
+                            if 'finalized' not in existing_remarks.lower():
+                                grade_obj.remarks = (existing_remarks + ' | Finalized').strip(' |')
+                                grade_obj.save()
+                        except Exception:
+                            pass
+
                     # store remarks/result if provided
                     result_val = request.POST.get(f'result_{enrollment.student.id}')
                     if result_val is not None:
@@ -563,8 +607,21 @@ def enter_grades(request):
                             pass
                     updated += 1
 
-            messages.success(request, f'Scores updated for {updated} students.')
-            return redirect(request.path + f'?subject_id={subject.id}')
+            if final_submit:
+                messages.success(request, f'Final grades submitted for {updated} students.')
+            else:
+                messages.success(request, f'Scores updated for {updated} students.')
+            # Preserve academic_year and semester filters when redirecting so saved scores are shown
+            try:
+                ay = academic_year
+            except NameError:
+                ay = request.GET.get('academic_year') or _get_current_academic_year()
+            try:
+                sem = semester
+            except NameError:
+                sem = request.GET.get('semester') or _get_current_semester()
+            qs = f'?subject_id={subject.id}&academic_year={ay}&semester={sem}'
+            return redirect(request.path + qs)
     else:
         subject = None
         enrollments = []
@@ -574,6 +631,7 @@ def enter_grades(request):
         'selected_subject': subject if selected_subject_id else None,
         'enrollments': enrollments,
         'student_scores': existing_grades if selected_subject_id else {},
+        'subject_finalized': subject_finalized if selected_subject_id else False,
     }
     return render(request, 'teachers/enter_grades.html', context)
 
@@ -898,6 +956,28 @@ def save_student_score(request):
             if parsed_score > 100:
                 parsed_score = 100
 
+    # If only an overall score was provided (no component inputs), allocate
+    # the total proportionally across components so they are visible after save.
+    if parsed_score is not None and all(x is None for x in [parsed_quiz, parsed_mid, parsed_assignment, parsed_final]):
+        try:
+            total_val = parsed_score
+            weights = {'quiz':5, 'mid':25, 'assignment':20, 'final':50}
+            alloc = {}
+            for k,w in weights.items():
+                v = int(round(total_val * (w/100.0)))
+                v = max(0, min(w, v))
+                alloc[k] = v
+            s = sum(alloc.values())
+            diff = total_val - s
+            if diff != 0:
+                alloc['final'] = max(0, min(weights['final'], alloc['final'] + diff))
+            parsed_quiz = alloc['quiz']
+            parsed_mid = alloc['mid']
+            parsed_assignment = alloc['assignment']
+            parsed_final = alloc['final']
+        except Exception:
+            pass
+
     # Create or update Grade (ranks.models.Grade)
     try:
         grade_obj, created = Grade.objects.get_or_create(student=student, subject=subject, defaults={'score': parsed_score})
@@ -912,8 +992,25 @@ def save_student_score(request):
         # created: ensure score field set (may be None)
         grade_obj.score = parsed_score
 
+    # Update component fields when provided
+    try:
+        if parsed_quiz is not None:
+            grade_obj.quiz_score = parsed_quiz
+        if parsed_mid is not None:
+            grade_obj.mid_score = parsed_mid
+        if parsed_assignment is not None:
+            grade_obj.assignment_score = parsed_assignment
+        if parsed_final is not None:
+            grade_obj.final_exam_score = parsed_final
+    except Exception:
+        # Model might not have component fields if migrations not applied; ignore
+        pass
+
     if result is not None:
         grade_obj.remarks = result
+    # ensure the overall numeric score is set if we computed one
+    if parsed_score is not None:
+        grade_obj.score = parsed_score
     grade_obj.save()
 
     # Save enrollment-level result
@@ -924,11 +1021,12 @@ def save_student_score(request):
         except Exception:
             pass
 
-    # compute updated subject average
+    # compute updated subject average and return the saved total for convenience
     avg = Grade.objects.filter(subject=subject, score__isnull=False).aggregate(avg=Avg('score'))['avg']
     avg = round(avg, 2) if avg is not None else None
+    total_return = grade_obj.score if hasattr(grade_obj, 'score') else parsed_score
 
-    return JsonResponse({'success': True, 'message': 'Saved', 'avg': avg})
+    return JsonResponse({'success': True, 'message': 'Saved', 'avg': avg, 'total': total_return})
 
 def get_grade_point(grade_letter):
     """Convert letter grade to grade point - helper function"""

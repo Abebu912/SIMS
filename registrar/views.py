@@ -372,17 +372,9 @@ def assign_subjects_to_teacher(request):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'assigned': assigned, 'message': success_msg})
 
+        # For non-AJAX requests, show the success message on the registrar dashboard
         messages.success(request, success_msg)
-        # Redirect back to the assign page (preserve filters) so the message is shown on the same view
-        params = []
-        if grade_level:
-            params.append(f'grade_level={grade_level}')
-        if post_academic_year:
-            params.append(f'academic_year={post_academic_year}')
-        if post_semester:
-            params.append(f'semester={post_semester}')
-        query = ('?' + '&'.join(params)) if params else ''
-        return redirect('assign_subjects_to_teacher' + query)
+        return redirect('registrar_dashboard')
 
     context = {
         'teachers': teachers,
