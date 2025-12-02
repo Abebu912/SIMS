@@ -10,6 +10,7 @@ from teachers.views import enroll_students_for_subject
 from django.db.utils import OperationalError
 from notifications.models import Notification
 from django.core.mail import send_mail
+from django.conf import settings
 import csv
 import io
 # ReportLab is an optional dependency used to generate PDF transcripts.
@@ -355,7 +356,7 @@ def assign_subjects_to_teacher(request):
                     send_mail(
                         subject=f'Subject assigned: {subj.code}',
                         message=f'Hello {teacher_user.get_full_name() or teacher_user.username},\n\nYou have been assigned to teach {subj.name} ({subj.code}) for {post_academic_year} - {post_semester}.\n\nPlease login to the system to view your classes and enter results.\n',
-                        from_email=None,
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
                         recipient_list=[teacher_user.email],
                         fail_silently=True,
                     )
@@ -364,12 +365,24 @@ def assign_subjects_to_teacher(request):
 
             assigned += 1
 
+        # Prepare success message
+        success_msg = f'Successfully assigned {assigned} subject(s) to {teacher_user.get_full_name() or teacher_user.username}.'
+
         # If AJAX request, return JSON so frontend can update without full reload
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'assigned': assigned})
+            return JsonResponse({'success': True, 'assigned': assigned, 'message': success_msg})
 
-        messages.success(request, f'Assigned {assigned} subjects to {teacher_user.get_full_name()}.')
-        return redirect('registrar_dashboard')
+        messages.success(request, success_msg)
+        # Redirect back to the assign page (preserve filters) so the message is shown on the same view
+        params = []
+        if grade_level:
+            params.append(f'grade_level={grade_level}')
+        if post_academic_year:
+            params.append(f'academic_year={post_academic_year}')
+        if post_semester:
+            params.append(f'semester={post_semester}')
+        query = ('?' + '&'.join(params)) if params else ''
+        return redirect('assign_subjects_to_teacher' + query)
 
     context = {
         'teachers': teachers,

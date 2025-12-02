@@ -135,10 +135,14 @@ document.getElementById('assign-form').addEventListener('submit', function(e){
         div.innerHTML = '<div><strong>Subject</strong></div><div><button type="button" class="btn btn-sm btn-outline-danger unassign-btn" data-subject-id="'+subjectId+'">Unassign</button></div>';
         assignedList.prepend(div);
       });
-      // Optionally show a message
-      alert('Assigned ' + (data.assigned || 0) + ' subject(s).');
+      // Show server-provided message (if any)
+      if(data.message) {
+        alert(data.message);
+      } else {
+        alert('Assigned ' + (data.assigned || 0) + ' subject(s).');
+      }
     } else {
-      alert('Assignment failed.');
+      alert(data.message || 'Assignment failed.');
     }
   }).catch(err => {
     console.error(err);
