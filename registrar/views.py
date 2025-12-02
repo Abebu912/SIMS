@@ -8,6 +8,7 @@ from subjects.models import Subject, Enrollment
 from ranks.models import Grade, calculate_student_average
 from teachers.views import enroll_students_for_subject
 from django.db.utils import OperationalError
+from django.db.models import Count, Q
 from notifications.models import Notification
 from django.core.mail import send_mail
 from django.conf import settings
@@ -117,6 +118,23 @@ def manage_academic_records(request):
         'grades': grades,
     }
     return render(request, 'registrar/academic_records.html', context)
+
+
+@registrar_required
+def handle_waitlists(request):
+    """List subjects that currently have waitlisted enrollments so registrar can manage them."""
+    # annotate each subject with the number of waitlisted enrollments
+    try:
+        waitlist_subjects = Subject.objects.annotate(
+            waitlist_count=Count('enrollments', filter=Q(enrollments__status='waitlisted'))
+        ).filter(waitlist_count__gt=0).order_by('-waitlist_count')
+    except Exception:
+        waitlist_subjects = []
+
+    context = {
+        'waitlist_subjects': waitlist_subjects,
+    }
+    return render(request, 'registrar/waitlists.html', context)
 
 @registrar_required
 def handle_waitlist(request, subject_id):

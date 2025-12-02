@@ -50,11 +50,7 @@
               </td>
               <td>{% if e.subject.instructor %}{{ e.subject.instructor.user.get_full_name }}{% else %}TBA{% endif %}</td>
               <td>
-                <form method="post" action="{% url 'update_grade' e.id %}" class="d-inline">
-                  {% csrf_token %}
-                  <input type="number" name="final_grade" placeholder="Score (0-100)" min="0" max="100" step="0.1" style="width:130px" />
-                  <button class="btn btn-sm btn-success">Update</button>
-                </form>
+                <span class="text-muted">No actions</span>
               </td>
             </tr>
             {% endfor %}
