@@ -106,7 +106,11 @@ def teacher_dashboard(request):
         semester_filter = _get_current_semester()
 
     # annotate each subject (assigned to this teacher) with the number of approved/active students for the selected term
-    teacher_qs = Subject.objects.filter(instructor__user=request.user, is_active=True)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        teacher_qs = Subject.objects.filter(instructor=teacher_obj, is_active=True)
+    else:
+        teacher_qs = Subject.objects.filter(instructor__user=request.user, is_active=True)
     if grade_level_filter:
         try:
             teacher_qs = teacher_qs.filter(grade_level=int(grade_level_filter))
@@ -117,7 +121,7 @@ def teacher_dashboard(request):
     )
 
     total_students = Enrollment.objects.filter(
-        subject__instructor__user=request.user,
+        subject__in=teacher_qs,
         status__in=['approved', 'active'],
         academic_year=academic_year_filter,
         semester=semester_filter
@@ -125,17 +129,14 @@ def teacher_dashboard(request):
 
     # pending scores across all subjects for this teacher
     try:
-        pending = Grade.objects.filter(
-            subject__instructor__user=request.user,
-            score__isnull=True
-        ).count()
+        pending = Grade.objects.filter(subject__in=teacher_qs, score__isnull=True).count()
     except OperationalError:
         pending = 0
 
     # per-subject pending counts (dictionary subject_id -> pending_count)
     per_subject_pending = {}
     try:
-        pending_qs = Grade.objects.filter(subject__instructor__user=request.user, score__isnull=True).values('subject').annotate(count=Count('id'))
+        pending_qs = Grade.objects.filter(subject__in=teacher_qs, score__isnull=True).values('subject').annotate(count=Count('id'))
         per_subject_pending = {p['subject']: p['count'] for p in pending_qs}
     except OperationalError:
         per_subject_pending = {}
@@ -397,13 +398,29 @@ def assign_selected_subjects(request):
 
 @teacher_required
 def enter_grades(request):
-    teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        teacher_subjects = Subject.objects.filter(instructor=teacher_obj, is_active=True)
+    else:
+        teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
     selected_subject_id = request.GET.get('subject_id')
-    
+
     if selected_subject_id:
         subject = get_object_or_404(Subject, id=selected_subject_id)
         # Only allow entering grades if the logged-in teacher is the instructor
-        if subject.instructor and subject.instructor.user != request.user:
+        # Support matching by Teacher profile or instructor.user
+        teacher_obj = get_teacher_profile(request.user)
+        instructor_ok = False
+        try:
+            if subject.instructor is None:
+                instructor_ok = False
+            elif teacher_obj is not None and subject.instructor == teacher_obj:
+                instructor_ok = True
+            elif hasattr(subject.instructor, 'user') and subject.instructor.user == request.user:
+                instructor_ok = True
+        except Exception:
+            instructor_ok = False
+        if not instructor_ok:
             messages.error(request, 'You are not the instructor for the selected subject.')
             return redirect('teacher_dashboard')
         # Filter enrollments by academic year & semester (default to current)
@@ -637,13 +654,27 @@ def enter_grades(request):
 
 @teacher_required
 def class_rosters(request):
-    teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        teacher_subjects = Subject.objects.filter(instructor=teacher_obj, is_active=True)
+    else:
+        teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
     selected_subject_id = request.GET.get('subject_id')
     
     if selected_subject_id:
         subject = get_object_or_404(Subject, id=selected_subject_id)
         # allow viewing rosters even for unassigned subjects; but if assigned to another teacher, restrict
-        if subject.instructor and subject.instructor.user != request.user:
+        instructor_ok = False
+        try:
+            if subject.instructor is None:
+                instructor_ok = True  # allow viewing unassigned subjects
+            elif teacher_obj is not None and subject.instructor == teacher_obj:
+                instructor_ok = True
+            elif hasattr(subject.instructor, 'user') and subject.instructor.user == request.user:
+                instructor_ok = True
+        except Exception:
+            instructor_ok = False
+        if subject.instructor and not instructor_ok:
             messages.error(request, 'You are not the instructor for the selected subject.')
             return redirect('teacher_dashboard')
         academic_year = request.GET.get('academic_year') or _get_current_academic_year()
@@ -662,12 +693,26 @@ def class_rosters(request):
 
 @teacher_required
 def performance_reports(request):
-    teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        teacher_subjects = Subject.objects.filter(instructor=teacher_obj, is_active=True)
+    else:
+        teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
     selected_subject_id = request.GET.get('subject_id')
     
     if selected_subject_id:
         subject = get_object_or_404(Subject, id=selected_subject_id)
-        if subject.instructor and subject.instructor.user != request.user:
+        instructor_ok = False
+        try:
+            if subject.instructor is None:
+                instructor_ok = False
+            elif teacher_obj is not None and subject.instructor == teacher_obj:
+                instructor_ok = True
+            elif hasattr(subject.instructor, 'user') and subject.instructor.user == request.user:
+                instructor_ok = True
+        except Exception:
+            instructor_ok = False
+        if subject.instructor and not instructor_ok:
             messages.error(request, 'You are not the instructor for the selected subject.')
             return redirect('teacher_dashboard')
         academic_year = request.GET.get('academic_year') or _get_current_academic_year()
@@ -717,7 +762,17 @@ def performance_reports(request):
 
 @teacher_required
 def update_student_grade(request, enrollment_id):
-    enrollment = get_object_or_404(Enrollment, id=enrollment_id, subject__instructor__user=request.user)
+    # allow instructor match by Teacher profile or instructor.user
+    teacher_obj = get_teacher_profile(request.user)
+    try:
+        if teacher_obj is not None:
+            enrollment = Enrollment.objects.get(id=enrollment_id, subject__instructor=teacher_obj)
+        else:
+            enrollment = Enrollment.objects.get(id=enrollment_id, subject__instructor__user=request.user)
+    except Enrollment.DoesNotExist:
+        enrollment = get_object_or_404(Enrollment, id=enrollment_id)
+        messages.error(request, 'You are not the instructor for this enrollment.')
+        return redirect('teacher_dashboard')
     
     if request.method == 'POST':
         form = GradeForm(request.POST)
@@ -763,13 +818,23 @@ def view_student_performance(request, student_id):
     # Get subjects taught by this teacher that the student is enrolled in
     academic_year = request.GET.get('academic_year') or _get_current_academic_year()
     semester = request.GET.get('semester') or _get_current_semester()
-    student_courses = Subject.objects.filter(
-        instructor__user=request.user,
-        enrollments__student=student,
-        enrollments__status__in=['approved', 'active'],
-        enrollments__academic_year=academic_year,
-        enrollments__semester=semester,
-    ).distinct()
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        student_courses = Subject.objects.filter(
+            instructor=teacher_obj,
+            enrollments__student=student,
+            enrollments__status__in=['approved', 'active'],
+            enrollments__academic_year=academic_year,
+            enrollments__semester=semester,
+        ).distinct()
+    else:
+        student_courses = Subject.objects.filter(
+            instructor__user=request.user,
+            enrollments__student=student,
+            enrollments__status__in=['approved', 'active'],
+            enrollments__academic_year=academic_year,
+            enrollments__semester=semester,
+        ).distinct()
     
     # Get grades for these courses
     try:
@@ -791,7 +856,11 @@ def view_student_performance(request, student_id):
 @teacher_required
 def bulk_grade_upload(request, subject_id):
     """Handle bulk score upload via CSV"""
-    subject = get_object_or_404(Subject, id=subject_id, instructor__user=request.user)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        subject = get_object_or_404(Subject, id=subject_id, instructor=teacher_obj)
+    else:
+        subject = get_object_or_404(Subject, id=subject_id, instructor__user=request.user)
     
     if request.method == 'POST' and request.FILES.get('grade_file'):
         grade_file = request.FILES['grade_file']
@@ -848,7 +917,11 @@ def bulk_grade_upload(request, subject_id):
 @teacher_required
 def get_subject_statistics(request, subject_id):
     """API endpoint for subject statistics (for charts)"""
-    subject = get_object_or_404(Subject, id=subject_id, instructor__user=request.user)
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        subject = get_object_or_404(Subject, id=subject_id, instructor=teacher_obj)
+    else:
+        subject = get_object_or_404(Subject, id=subject_id, instructor__user=request.user)
     try:
         grades = Grade.objects.filter(subject=subject)
     except OperationalError:
@@ -898,7 +971,11 @@ def save_student_score(request):
         return JsonResponse({'success': False, 'message': 'Missing student_id or subject_id'}, status=400)
 
     try:
-        subject = Subject.objects.get(id=subject_id, instructor__user=request.user)
+        teacher_obj = get_teacher_profile(request.user)
+        if teacher_obj is not None:
+            subject = Subject.objects.get(id=subject_id, instructor=teacher_obj)
+        else:
+            subject = Subject.objects.get(id=subject_id, instructor__user=request.user)
     except Subject.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Subject not found or you are not the instructor'}, status=403)
 
