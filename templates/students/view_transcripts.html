@@ -10,7 +10,8 @@
             <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="card-title mb-0">
+                        <div style="font-weight:700; font-size:1.05rem;">GINBA JUNIER SCHOOL</div>
+                        <h4 class="card-title mb-0 mt-1">
                             <i class="fas fa-file-alt me-2"></i>My Transcripts
                         </h4>
                         <small>Student ID: {{ student_profile.student_id|default:"N/A" }}</small>
@@ -56,8 +57,6 @@
                         <table class="table table-striped table-bordered">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>Academic Year</th>
-                                    <th>Semester</th>
                                     <th>Subject Code</th>
                                     <th>Subject Name</th>
                                     <th>Result (out of 100)</th>
@@ -67,8 +66,6 @@
                             <tbody>
                                 {% for item in transcript_data %}
                                 <tr>
-                                    <td>{{ item.academic_year }}</td>
-                                    <td>{{ item.semester }}</td>
                                     <td>{{ item.subject_code|default:"N/A" }}</td>
                                     <td><strong>{{ item.subject_name }}</strong></td>
                                     <td>
@@ -80,18 +77,18 @@
                             </tbody>
                             <tfoot class="table-light">
                                 <tr>
-                                    <td colspan="4" class="text-end"><strong>Total Result:</strong></td>
+                                    <td colspan="2" class="text-end"><strong>Total Result:</strong></td>
                                     <td><strong>{{ total_result|default:"0" }}</strong></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="4" class="text-end"><strong>Average Result:</strong></td>
+                                    <td colspan="2" class="text-end"><strong>Average Result:</strong></td>
                                     <td><strong>{{ average_result|default:"0" }} / 100</strong></td>
                                     <td></td>
                                 </tr>
                                 {% if class_rank %}
                                 <tr>
-                                    <td colspan="4" class="text-end"><strong>Class Rank:</strong></td>
+                                    <td colspan="2" class="text-end"><strong>Class Rank:</strong></td>
                                     <td><strong>#{{ class_rank }}</strong></td>
                                     <td></td>
                                 </tr>

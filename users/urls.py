@@ -10,6 +10,7 @@ urlpatterns = [
     path('add-user/', admin_views.add_user, name='add_user'),
     path('system-settings/', admin_views.system_settings, name='system_settings'),
     path('generate-reports/', admin_views.generate_reports, name='generate_reports'),
+    path('generate-reports/download/', admin_views.generate_report_download, name='generate_report_download'),
     path('post-announcement/', admin_views.post_announcement, name='post_announcement'),
     path('debug-add-user/', admin_views.debug_add_user, name='debug_add_user'),
     path('students/dashboard/', views.student_dashboard, name='student_dashboard'),

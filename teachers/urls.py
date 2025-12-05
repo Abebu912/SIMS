@@ -6,6 +6,8 @@ urlpatterns = [
     path('enter-grades/', views.enter_grades, name='enter_grades'),
     path('class-rosters/', views.class_rosters, name='class_rosters'),
     path('performance-reports/', views.performance_reports, name='performance_reports'),
+    path('performance-reports/export-csv/', views.performance_reports_csv, name='performance_reports_csv'),
+    path('performance-reports/download-pdf/', views.performance_reports_pdf, name='performance_reports_pdf'),
     path('update-grade/<int:enrollment_id>/', views.update_student_grade, name='update_student_grade'),
     # Registrar/teacher helper to enter numeric score for a student-subject
     path('enter-score/<int:student_id>/<int:subject_id>/', user_views.enter_numeric_score, name='enter_numeric_score'),

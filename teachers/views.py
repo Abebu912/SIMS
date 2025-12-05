@@ -8,12 +8,25 @@ from subjects.models import Subject, Enrollment
 from ranks.models import Grade, rank_students_for_subject
 from ranks.forms import GradeForm
 from django.http import JsonResponse
+from django.http import HttpResponse
+import csv
+import io
 from django.db.utils import OperationalError
 from django.views.decorators.http import require_POST
 from .forms import BulkAssignForm
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from notifications.models import Notification
+from django.template.loader import render_to_string
+
+try:
+    from xhtml2pdf import pisa
+except Exception:
+    pisa = None
+try:
+    from weasyprint import HTML
+except Exception:
+    HTML = None
 
 
 def get_teacher_profile(user):
@@ -720,7 +733,12 @@ def performance_reports(request):
         try:
             # Restrict grades to students actually enrolled in this subject for the selected term
             student_ids = Enrollment.objects.filter(subject=subject, academic_year=academic_year, semester=semester, status__in=['approved', 'active']).values_list('student_id', flat=True)
-            grades = Grade.objects.filter(subject=subject, student__id__in=student_ids).select_related('student')
+            if student_ids:
+                grades = Grade.objects.filter(subject=subject, student__id__in=student_ids).select_related('student')
+            else:
+                # Fallback: if no enrollments are found for the selected term (possible term/format mismatch),
+                # fall back to any saved Grade records for this subject so existing results are visible.
+                grades = Grade.objects.filter(subject=subject).select_related('student')
         except OperationalError:
             messages.error(request, 'Database tables for the `ranks` app are missing. Please run `python manage.py migrate`.')
             grades = []
@@ -737,28 +755,254 @@ def performance_reports(request):
                 '60-69': len([s for s in numeric_scores if 60 <= s < 70]),
                 '0-59': len([s for s in numeric_scores if s < 60]),
             }
-            # compute ranks using helper
-            subject_ranking = rank_students_for_subject(subject)
+            # compute ranks based on the `grades` queryset we're displaying so ranks match the table
+            grades_list = list(grades)
+            scored = [g for g in grades_list if g.score is not None]
+            scored.sort(key=lambda x: x.score, reverse=True)
+            last_score = None
+            last_rank = 0
+            idx = 0
+            rank_map = {}
+            for g in scored:
+                idx += 1
+                if g.score == last_score:
+                    rank = last_rank
+                else:
+                    rank = idx
+                    last_rank = rank
+                    last_score = g.score
+                rank_map[g.student.id] = rank
+            # prepare a list pairing each grade with its computed rank for the template
+            grades_with_rank = [{'grade': g, 'rank': rank_map.get(g.student.id)} for g in grades_list]
+            # also build subject_ranking for legacy template sections if needed
+            subject_ranking = [(g.student, g.score, rank_map.get(g.student.id)) for g in scored]
         else:
             avg_score = 0
             score_distribution = {}
             subject_ranking = []
+            grades_with_rank = []
     else:
         subject = None
-        grades = []
+        # support grade-level / term-wide reports when no subject is selected
+        selected_grade_level = request.GET.get('grade_level')
+        academic_year = request.GET.get('academic_year') or _get_current_academic_year()
+        semester = request.GET.get('semester') or _get_current_semester()
+        if selected_grade_level:
+            try:
+                student_ids = Enrollment.objects.filter(
+                    subject__in=teacher_subjects,
+                    academic_year=academic_year,
+                    semester=semester,
+                    status__in=['approved', 'active'],
+                    student__studentprofile__grade_level=selected_grade_level
+                ).values_list('student_id', flat=True)
+                if student_ids:
+                    grades = Grade.objects.filter(student__id__in=student_ids, subject__in=teacher_subjects).select_related('student','subject')
+                else:
+                    grades = Grade.objects.filter(student__studentprofile__grade_level=selected_grade_level, subject__in=teacher_subjects).select_related('student','subject')
+            except OperationalError:
+                grades = []
+        else:
+            grades = []
         avg_score = 0
         score_distribution = {}
         subject_ranking = []
-    
-    context = {
+
+        # If grades were collected (either by subject or grade-level), compute stats and ranks
+        if grades:
+            numeric_scores = [g.score for g in grades if g.score is not None]
+            avg_score = sum(numeric_scores) / len(numeric_scores) if numeric_scores else 0
+            score_distribution = {
+                '90-100': len([s for s in numeric_scores if s >= 90]),
+                '80-89': len([s for s in numeric_scores if 80 <= s < 90]),
+                '70-79': len([s for s in numeric_scores if 70 <= s < 80]),
+                '60-69': len([s for s in numeric_scores if 60 <= s < 70]),
+                '0-59': len([s for s in numeric_scores if s < 60]),
+            }
+            grades_list = list(grades)
+            scored = [g for g in grades_list if g.score is not None]
+            scored.sort(key=lambda x: x.score, reverse=True)
+            last_score = None
+            last_rank = 0
+            idx = 0
+            rank_map = {}
+            for g in scored:
+                idx += 1
+                if g.score == last_score:
+                    rank = last_rank
+                else:
+                    rank = idx
+                    last_rank = rank
+                    last_score = g.score
+                rank_map[g.student.id] = rank
+            grades_with_rank = [{'grade': g, 'rank': rank_map.get(g.student.id)} for g in grades_list]
+            subject_ranking = [(g.student, g.score, rank_map.get(g.student.id)) for g in scored]
+
+        context = {
         'teacher_subjects': teacher_subjects,
         'selected_subject': subject,
         'grades': grades,
+        'grades_with_rank': grades_with_rank,
         'avg_score': round(avg_score, 2),
         'score_distribution': score_distribution,
         'subject_ranking': subject_ranking,
+        'grade_choices': getattr(Subject, 'GRADE_LEVEL_CHOICES', []),
+        'academic_year_choices': [f"{y}-{y+1}" for y in range(int(_get_current_academic_year().split('-')[0]) - 3, int(_get_current_academic_year().split('-')[0]) + 1)],
+        'selected_grade_level': request.GET.get('grade_level'),
+        'selected_academic_year': request.GET.get('academic_year') or _get_current_academic_year(),
+        'selected_semester': request.GET.get('semester') or _get_current_semester(),
     }
     return render(request, 'teachers/performance_reports.html', context)
+
+
+@teacher_required
+def performance_reports_csv(request):
+    """Export the performance table as CSV for the selected subject and term.
+    Query params: subject_id, academic_year (optional), semester (optional)
+    """
+    selected_subject_id = request.GET.get('subject_id')
+    if not selected_subject_id:
+        return HttpResponseBadRequest('Missing subject_id')
+
+    subject = get_object_or_404(Subject, id=selected_subject_id)
+    # permission check: allow if instructor matches teacher profile or user
+    teacher_obj = get_teacher_profile(request.user)
+    instructor_ok = False
+    try:
+        if subject.instructor is None:
+            instructor_ok = False
+        elif teacher_obj is not None and subject.instructor == teacher_obj:
+            instructor_ok = True
+        elif hasattr(subject.instructor, 'user') and subject.instructor.user == request.user:
+            instructor_ok = True
+    except Exception:
+        instructor_ok = False
+    if subject.instructor and not instructor_ok:
+        messages.error(request, 'You are not the instructor for the selected subject.')
+        return redirect('teacher_dashboard')
+
+    academic_year = request.GET.get('academic_year') or _get_current_academic_year()
+    semester = request.GET.get('semester') or _get_current_semester()
+
+    try:
+        student_ids = Enrollment.objects.filter(subject=subject, academic_year=academic_year, semester=semester, status__in=['approved', 'active']).values_list('student_id', flat=True)
+        if student_ids:
+            grades = Grade.objects.filter(subject=subject, student__id__in=student_ids).select_related('student')
+        else:
+            grades = Grade.objects.filter(subject=subject).select_related('student')
+    except OperationalError:
+        messages.error(request, 'Database tables for the `ranks` app are missing. Please run `python manage.py migrate`.')
+        return redirect('performance_reports')
+
+    # compute ranks for CSV using same logic as the view
+    grades_list = list(grades)
+    scored = [g for g in grades_list if g.score is not None]
+    scored.sort(key=lambda x: x.score, reverse=True)
+    last_score = None
+    last_rank = 0
+    idx = 0
+    rank_map = {}
+    for g in scored:
+        idx += 1
+        if g.score == last_score:
+            rank = last_rank
+        else:
+            rank = idx
+            last_rank = rank
+            last_score = g.score
+        rank_map[g.student.id] = rank
+
+    # Build CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Rank', 'Student', 'Quiz', 'Mid', 'Assignment', 'Final', 'Total', 'Remarks'])
+    for g in grades_list:
+        rank = rank_map.get(g.student.id, '')
+        row = [rank, g.student.get_full_name() or g.student.username, g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', (g.remarks or '')]
+        writer.writerow(row)
+
+    resp = HttpResponse(output.getvalue(), content_type='text/csv')
+    resp['Content-Disposition'] = f'attachment; filename="performance_{subject.code}.csv"'
+    return resp
+
+
+@teacher_required
+def performance_reports_pdf(request):
+    """Return a PDF of student performance filtered by subject or grade_level and term."""
+    teacher_obj = get_teacher_profile(request.user)
+    if teacher_obj is not None:
+        teacher_subjects = Subject.objects.filter(instructor=teacher_obj, is_active=True)
+    else:
+        teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
+
+    selected_subject_id = request.GET.get('subject_id')
+    selected_grade_level = request.GET.get('grade_level')
+    academic_year = request.GET.get('academic_year') or _get_current_academic_year()
+    semester = request.GET.get('semester') or _get_current_semester()
+
+    rows = []
+    title = 'Student Performance'
+    if selected_subject_id:
+        subject = get_object_or_404(Subject, id=selected_subject_id)
+        # permission check
+        teacher_ok = False
+        try:
+            if subject.instructor is None:
+                teacher_ok = False
+            elif teacher_obj is not None and subject.instructor == teacher_obj:
+                teacher_ok = True
+            elif hasattr(subject.instructor, 'user') and subject.instructor.user == request.user:
+                teacher_ok = True
+        except Exception:
+            teacher_ok = False
+        if subject.instructor and not teacher_ok:
+            return HttpResponse('Forbidden', status=403)
+        try:
+            student_ids = Enrollment.objects.filter(subject=subject, academic_year=academic_year, semester=semester, status__in=['approved','active']).values_list('student_id', flat=True)
+            if student_ids:
+                grades_qs = Grade.objects.filter(subject=subject, student__id__in=student_ids).select_related('student')
+            else:
+                grades_qs = Grade.objects.filter(subject=subject).select_related('student')
+        except Exception:
+            grades_qs = []
+        title = f'Student Performance - {getattr(subject, "name", str(subject))}'
+    elif selected_grade_level:
+        try:
+            student_ids = Enrollment.objects.filter(subject__in=teacher_subjects, academic_year=academic_year, semester=semester, status__in=['approved','active'], student__studentprofile__grade_level=selected_grade_level).values_list('student_id', flat=True)
+            if student_ids:
+                grades_qs = Grade.objects.filter(student__id__in=student_ids, subject__in=teacher_subjects).select_related('student','subject')
+            else:
+                grades_qs = Grade.objects.filter(student__studentprofile__grade_level=selected_grade_level, subject__in=teacher_subjects).select_related('student','subject')
+        except Exception:
+            grades_qs = []
+        title = f'Student Performance - Grade {selected_grade_level} ({academic_year} {semester})'
+    else:
+        grades_qs = Grade.objects.none()
+
+    for g in grades_qs:
+        rows.append([
+            g.student.get_full_name() or g.student.username,
+            getattr(g.subject, 'code', str(g.subject)),
+            g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
+            g.graded_at.strftime('%Y-%m-%d %H:%M') if getattr(g, 'graded_at', None) else ''
+        ])
+
+    html = render_to_string('admin/report_pdf.html', {'title': title, 'headers': ['Student','Subject','Quiz','Mid','Assignment','Final','Total','Remarks','Graded At'], 'rows': rows})
+    if HTML is not None:
+        pdf = HTML(string=html).write_pdf()
+        resp = HttpResponse(pdf, content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{title.replace(" ", "_")}.pdf"'
+        return resp
+    elif pisa is not None:
+        outb = io.BytesIO()
+        pisa_status = pisa.CreatePDF(io.StringIO(html), dest=outb)
+        if pisa_status.err:
+            return HttpResponse('Error generating PDF', status=500)
+        resp = HttpResponse(outb.getvalue(), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{title.replace(" ", "_")}.pdf"'
+        return resp
+    else:
+        return HttpResponse(html, content_type='text/html')
 
 @teacher_required
 def update_student_grade(request, enrollment_id):

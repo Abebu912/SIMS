@@ -3,15 +3,43 @@
 {% block content %}
 <div class="container py-4">
   <h2>Performance Reports</h2>
-  <form method="get" class="mb-3">
-    <label for="subject">Select subject:</label>
+  <form method="get" class="mb-3 form-inline">
+    <label for="grade_level" class="mr-2">Grade:</label>
+    <select id="grade_level" name="grade_level" class="mr-3" onchange="this.form.submit()">
+      <option value="">--All Grades--</option>
+      {% for code, label in grade_choices %}
+      <option value="{{ code }}" {% if selected_grade_level and selected_grade_level|stringformat:"s" == code|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="academic_year" class="mr-2">Academic Year:</label>
+    <select id="academic_year" name="academic_year" class="mr-3" onchange="this.form.submit()">
+      {% for ay in academic_year_choices %}
+      <option value="{{ ay }}" {% if selected_academic_year and selected_academic_year == ay %}selected{% endif %}>{{ ay }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="semester" class="mr-2">Semester:</label>
+    <select id="semester" name="semester" class="mr-3" onchange="this.form.submit()">
+      <option value="first" {% if selected_semester == 'first' %}selected{% endif %}>First</option>
+      <option value="second" {% if selected_semester == 'second' %}selected{% endif %}>Second</option>
+      <option value="summer" {% if selected_semester == 'summer' %}selected{% endif %}>Summer</option>
+    </select>
+
+    <label for="subject" class="mr-2">Or subject:</label>
     <select id="subject" name="subject_id" onchange="this.form.submit()">
-      <option value="">--Select--</option>
+      <option value="">--Select subject--</option>
       {% for c in teacher_subjects %}
       <option value="{{ c.id }}" {% if selected_subject and selected_subject.id == c.id %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
       {% endfor %}
     </select>
   </form>
+  <div class="mb-3 no-print">
+    {% if selected_subject or selected_grade_level %}
+      <a class="btn btn-outline-primary" href="{% url 'performance_reports_pdf' %}?{% if selected_subject %}subject_id={{ selected_subject.id }}&{% endif %}{% if selected_grade_level %}grade_level={{ selected_grade_level }}&academic_year={{ selected_academic_year }}&semester={{ selected_semester }}&{% endif %}">Download PDF</a>
+      <button class="btn btn-secondary" onclick="window.print();">Print</button>
+    {% endif %}
+  </div>
 
   {% if selected_subject %}
   <h4>Report for {{ selected_subject.name }}</h4>
@@ -23,25 +51,56 @@
     {% endfor %}
   </ul>
 
-  <h5>Student Ranking</h5>
-  {% if subject_ranking %}
-  <table class="table">
-    <thead><tr><th>Rank</th><th>Student</th><th>Score</th></tr></thead>
-    <tbody>
-      {% for student, score, rank in subject_ranking %}
+  <h5>Assessment Breakdown & Ranking</h5>
+  {% if grades_with_rank %}
+  <table class="table table-striped">
+    <thead>
       <tr>
-        <td>{{ rank }}</td>
-        <td>{{ student.get_full_name }}</td>
-        <td>{{ score }}</td>
+        <th>Rank</th>
+        <th>Student</th>
+        <th>Subject</th>
+        <th class="text-center">Quiz</th>
+        <th class="text-center">Mid</th>
+        <th class="text-center">Assignment</th>
+        <th class="text-center">Final</th>
+        <th class="text-center">Total</th>
+        <th>Remarks</th>
       </tr>
+    </thead>
+    <tbody>
+      {% for item in grades_with_rank %}
+      {% with g=item.grade rank=item.rank %}
+      <tr>
+        <td class="align-middle">{% if rank %}{{ rank }}{% else %}-{% endif %}</td>
+        <td class="align-middle">{{ g.student.get_full_name }}</td>
+        <td class="align-middle">{{ g.subject.code|default:g.subject }}</td>
+        <td class="text-center">{% if g.quiz_score is not None %}{{ g.quiz_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if g.mid_score is not None %}{{ g.mid_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if g.assignment_score is not None %}{{ g.assignment_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if g.final_exam_score is not None %}{{ g.final_exam_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if g.score is not None %}{{ g.score }}{% else %}-{% endif %}</td>
+        <td class="align-middle">{% if g.remarks %}{{ g.remarks }}{% else %}-{% endif %}</td>
+      </tr>
+      {% endwith %}
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-    <p>No scored students yet.</p>
+    <p>No grade records for this subject/term.</p>
   {% endif %}
   {% else %}
     <p>Select a subject to view performance.</p>
   {% endif %}
+</div>
+
+<style>
+  @media print {
+    /* hide navigation and controls */
+    .no-print, header, nav, .btn { display: none !important; }
+    body { background: #fff !important; }
+    .container { width: 100% !important; }
+    table { font-size: 12pt !important; }
+  }
+</style>
 </div>
 {% endblock %}

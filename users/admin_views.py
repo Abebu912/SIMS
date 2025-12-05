@@ -15,6 +15,19 @@ from django.conf import settings
 import json, os
 from notifications.models import Notification
 from django.urls import reverse
+from django.http import HttpResponse, HttpResponseBadRequest
+import csv, io
+from django.template.loader import render_to_string
+import datetime
+try:
+    # try optional PDF rendering libs
+    from xhtml2pdf import pisa
+except Exception:
+    pisa = None
+try:
+    from weasyprint import HTML
+except Exception:
+    HTML = None
 @login_required
 def admin_panel(request):
     """Admin panel view"""
@@ -332,6 +345,224 @@ def generate_reports(request):
         'reports': reports,
     }
     return render(request, 'admin/generate_reports.html', context)
+
+
+@login_required
+def generate_report_download(request):
+    """Endpoint to download generated reports as CSV or PDF.
+    Query params:
+      - type: report key (e.g. user_breakdown, student_performance, fee_collection)
+      - format: csv|pdf
+      - date_from, date_to: optional ISO date strings
+    """
+    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+        return HttpResponse('Forbidden', status=403)
+
+    rtype = request.GET.get('type') or request.GET.get('reportType') or request.GET.get('report_type')
+    # Force PDF output for all report downloads. CSV output has been removed
+    # to ensure consistent PDF downloads; if no PDF engine is available we
+    # will fall back to returning HTML for preview.
+    fmt = 'pdf'
+    date_from = request.GET.get('date_from') or request.GET.get('report_date_from')
+    date_to = request.GET.get('date_to') or request.GET.get('report_date_to')
+
+    # parse dates
+    df = None
+    dt = None
+    try:
+        if date_from:
+            df = datetime.datetime.fromisoformat(date_from)
+        if date_to:
+            dt = datetime.datetime.fromisoformat(date_to)
+    except Exception:
+        df = dt = None
+
+    # Build dataset depending on report type
+    if rtype == 'user_breakdown':
+        qs = User.objects.values('role').annotate(count=Count('id'))
+        rows = [('Role', 'Count')]
+        for row in qs:
+            rows.append((row['role'] or 'Unknown', row['count']))
+        filename_base = 'user_breakdown'
+
+        if fmt == 'csv':
+            out = io.StringIO()
+            writer = csv.writer(out)
+            for r in rows:
+                writer.writerow(r)
+            resp = HttpResponse(out.getvalue(), content_type='text/csv')
+            resp['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
+            return resp
+        else:
+            # render HTML and convert to PDF if possible
+            html = render_to_string('admin/report_pdf.html', {'title': 'User Role Breakdown', 'headers': rows[0], 'rows': rows[1:]})
+            if HTML is not None:
+                pdf = HTML(string=html).write_pdf()
+                resp = HttpResponse(pdf, content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            elif pisa is not None:
+                out = io.BytesIO()
+                pisa_status = pisa.CreatePDF(io.StringIO(html), dest=out)
+                if pisa_status.err:
+                    return HttpResponse('Error generating PDF', status=500)
+                resp = HttpResponse(out.getvalue(), content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            else:
+                # fallback: return HTML as download with .pdf filename (not a real PDF)
+                resp = HttpResponse(html, content_type='text/html')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.html"'
+                return resp
+
+    elif rtype == 'student_performance':
+        # gather grades within date range (graded_at) if provided
+        grades_qs = []
+        try:
+            grades_qs = Grade.objects.all().select_related('student', 'subject')
+            if df:
+                grades_qs = grades_qs.filter(graded_at__gte=df)
+            if dt:
+                grades_qs = grades_qs.filter(graded_at__lte=dt)
+        except Exception:
+            grades_qs = []
+
+        filename_base = 'student_performance'
+        headers = ['Student', 'Subject', 'Quiz', 'Mid', 'Assignment', 'Final', 'Total', 'Remarks', 'Graded At']
+
+        if fmt == 'csv':
+            out = io.StringIO()
+            writer = csv.writer(out)
+            writer.writerow(headers)
+            for g in grades_qs:
+                writer.writerow([
+                    g.student.get_full_name() or g.student.username,
+                    getattr(g.subject, 'code', str(g.subject)),
+                    g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
+                    g.graded_at.isoformat() if getattr(g, 'graded_at', None) else ''
+                ])
+            resp = HttpResponse(out.getvalue(), content_type='text/csv')
+            resp['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
+            return resp
+        else:
+            # Render HTML table then attempt PDF
+            rows = []
+            for g in grades_qs:
+                rows.append([
+                    g.student.get_full_name() or g.student.username,
+                    getattr(g.subject, 'code', str(g.subject)),
+                    g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
+                    g.graded_at.strftime('%Y-%m-%d %H:%M') if getattr(g, 'graded_at', None) else ''
+                ])
+            html = render_to_string('admin/report_pdf.html', {'title': 'Student Performance', 'headers': headers, 'rows': rows})
+            if HTML is not None:
+                pdf = HTML(string=html).write_pdf()
+                resp = HttpResponse(pdf, content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            elif pisa is not None:
+                outb = io.BytesIO()
+                pisa_status = pisa.CreatePDF(io.StringIO(html), dest=outb)
+                if pisa_status.err:
+                    return HttpResponse('Error generating PDF', status=500)
+                resp = HttpResponse(outb.getvalue(), content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            else:
+                return HttpResponse(html, content_type='text/html')
+
+    elif rtype == 'all_reports':
+        # Build several report sections and combine into one HTML for PDF
+        sections = []
+        # user breakdown
+        try:
+            qs = User.objects.values('role').annotate(count=Count('id'))
+            rows_ud = [(row['role'] or 'Unknown', row['count']) for row in qs]
+        except Exception:
+            rows_ud = []
+        sections.append({'title': 'User Role Breakdown', 'headers': ['Role','Count'], 'rows': rows_ud})
+
+        # student performance
+        try:
+            grades_qs = Grade.objects.all().select_related('student', 'subject')[:1000]
+            rows_sp = []
+            for g in grades_qs:
+                rows_sp.append([
+                    g.student.get_full_name() or g.student.username,
+                    getattr(g.subject, 'code', str(g.subject)),
+                    g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
+                    g.graded_at.strftime('%Y-%m-%d %H:%M') if getattr(g, 'graded_at', None) else ''
+                ])
+        except Exception:
+            rows_sp = []
+        sections.append({'title': 'Student Performance', 'headers': ['Student','Subject','Quiz','Mid','Assignment','Final','Total','Remarks','Graded At'], 'rows': rows_sp})
+
+        # fee collection (placeholder summary)
+        try:
+            # simple placeholder: total payments and count if Payments model exists
+            from payments.models import Payment
+            total_paid = Payment.objects.aggregate(total=Count('id'))['total']
+            rows_fee = [('Total payments', total_paid)]
+        except Exception:
+            rows_fee = [('Note','Fee collection report not implemented')]
+        sections.append({'title': 'Fee Collection Summary', 'headers': ['Metric','Value'], 'rows': rows_fee})
+
+        html = render_to_string('admin/report_pdf.html', {'title': 'All Reports', 'sections': sections})
+        if fmt == 'pdf':
+            if HTML is not None:
+                pdf = HTML(string=html).write_pdf()
+                resp = HttpResponse(pdf, content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="all_reports.pdf"'
+                return resp
+            elif pisa is not None:
+                outb = io.BytesIO()
+                pisa_status = pisa.CreatePDF(io.StringIO(html), dest=outb)
+                if pisa_status.err:
+                    return HttpResponse('Error generating PDF', status=500)
+                resp = HttpResponse(outb.getvalue(), content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="all_reports.pdf"'
+                return resp
+            else:
+                return HttpResponse(html, content_type='text/html')
+        else:
+            # For CSV, concatenate sections into a single CSV output
+            out = io.StringIO()
+            writer = csv.writer(out)
+            for sec in sections:
+                writer.writerow([sec['title']])
+                for r in sec['rows']:
+                    writer.writerow(r)
+                writer.writerow([])
+            resp = HttpResponse(out.getvalue(), content_type='text/csv')
+            resp['Content-Disposition'] = 'attachment; filename="all_reports.csv"'
+            return resp
+
+    else:
+        # For unimplemented report types, return a short HTML/PDF notice instead
+        filename_base = f'report_{rtype or "unknown"}'
+        html = render_to_string('admin/report_pdf.html', {
+            'title': 'Report Not Implemented',
+            'sections': [
+                {'title': 'Notice', 'headers': ['Message'], 'rows': [(f'Report type "{rtype}" is not implemented yet.',)]}
+            ]
+        })
+        if HTML is not None:
+            pdf = HTML(string=html).write_pdf()
+            resp = HttpResponse(pdf, content_type='application/pdf')
+            resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+            return resp
+        elif pisa is not None:
+            outb = io.BytesIO()
+            pisa_status = pisa.CreatePDF(io.StringIO(html), dest=outb)
+            if pisa_status.err:
+                return HttpResponse('Error generating PDF', status=500)
+            resp = HttpResponse(outb.getvalue(), content_type='application/pdf')
+            resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+            return resp
+        else:
+            resp = HttpResponse(html, content_type='text/html')
+            resp['Content-Disposition'] = f'attachment; filename="{filename_base}.html"'
+            return resp
 @admin_required
 def post_announcement(request):
     if request.method == 'POST':

@@ -41,6 +41,8 @@ urlpatterns = [
     path("teachers/", include("teachers.urls")),
     # Parents app URLs
     path("parents/", include("parents.urls")),
+    # expose users URLs under /users/ for backward-compatible links
+    path("users/", include("users.urls")),
     # Finance app URLs (enable finance officer pages and named routes)
     path("finance/", include("finance.urls")),
     
