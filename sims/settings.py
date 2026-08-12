@@ -3,19 +3,30 @@ from pathlib import Path
 from datetime import timedelta
 import socket
 import logging
+import dj_database_url
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'your-secret-key-here'
+SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Added local LAN IP so other devices can access the dev server.
 # Allow localtunnel / loca.lt subdomains for temporary public tunnels.
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '172.16.23.219', '.loca.lt']
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='127.0.0.1,localhost,172.16.23.219,.loca.lt,.onrender.com',
+    cast=Csv()
+)
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://*.onrender.com,http://localhost:8000,http://127.0.0.1:8000',
+    cast=Csv()
+)
 
 # Application definition
 INSTALLED_APPS = [
@@ -47,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -82,12 +94,16 @@ TEMPLATES = [
 ]
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = config('DATABASE_URL', default='')
+if DATABASE_URL:
+    DATABASES = {'default': dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -113,13 +129,21 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',  # If you have static files
+    BASE_DIR / 'static',
 ]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -144,7 +168,7 @@ EMAIL_HOST_PASSWORD = 'xsvuarxmynwdvjfh'  # Use App Password, not regular passwo
 DEFAULT_FROM_EMAIL = 'abebuwubete099@gmail.com'
 # Passwd reset settings
 PASSWORD_RESET_TIMEOUT = 86400  # 24 hours in seconds
-SITE_URL = 'http://127.0.0.1:8000'  # Change to your domain in production
+SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 
 # Load persisted site settings from `site_settings.json` (if present) so
 # values like `admin_email` persist across server restarts. This overrides

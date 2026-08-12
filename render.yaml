@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: sims-app
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn sims.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com,http://localhost:8000,http://127.0.0.1:8000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sims-db
+          property: connectionString
