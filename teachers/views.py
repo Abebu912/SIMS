@@ -3,7 +3,8 @@ from django.contrib import messages
 from django.db.models import Q, Count
 from django.db.models import Avg
 from users.decorators import teacher_required, registrar_required
-from users.models import User
+from users.models import User, StudentParent
+from django.utils import timezone
 from subjects.models import Subject, Enrollment
 from ranks.models import Grade, rank_students_for_subject
 from ranks.forms import GradeForm
@@ -18,6 +19,7 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from notifications.models import Notification
 from django.template.loader import render_to_string
+from types import SimpleNamespace
 
 try:
     from xhtml2pdf import pisa
@@ -618,7 +620,33 @@ def enter_grades(request):
                             existing_remarks = (grade_obj.remarks or '')
                             if 'finalized' not in existing_remarks.lower():
                                 grade_obj.remarks = (existing_remarks + ' | Finalized').strip(' |')
+                                grade_obj.is_finalized = True
+                                grade_obj.finalized_at = timezone.now()
                                 grade_obj.save()
+                                # Create notifications for student and linked parents
+                                try:
+                                    Notification.objects.create(
+                                        user=grade_obj.student,
+                                        title='Final Grade Submitted',
+                                        message=f'Your final grade for {subject.code} has been submitted by the teacher.',
+                                        link=f'/students/grades/?student_id={grade_obj.student.id}'
+                                    )
+                                except Exception:
+                                    pass
+                                try:
+                                    parents = StudentParent.objects.filter(student=grade_obj.student).select_related('parent')
+                                    for rel in parents:
+                                        try:
+                                            Notification.objects.create(
+                                                user=rel.parent,
+                                                title='Child Result Submitted',
+                                                message=f"Final grade submitted for {grade_obj.student.get_full_name()} in {subject.code}.",
+                                                link=f'/parents/child_grades/?student_id={grade_obj.student.id}'
+                                            )
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
                         except Exception:
                             pass
 
@@ -673,6 +701,7 @@ def class_rosters(request):
     else:
         teacher_subjects = Subject.objects.filter(instructor__user=request.user, is_active=True)
     selected_subject_id = request.GET.get('subject_id')
+    participant_count = 0
     
     if selected_subject_id:
         subject = get_object_or_404(Subject, id=selected_subject_id)
@@ -692,7 +721,64 @@ def class_rosters(request):
             return redirect('teacher_dashboard')
         academic_year = request.GET.get('academic_year') or _get_current_academic_year()
         semester = request.GET.get('semester') or _get_current_semester()
-        enrollments = Enrollment.objects.filter(subject=subject, academic_year=academic_year, semester=semester, status__in=['approved', 'active']).select_related('student')
+        enroll_qs = Enrollment.objects.filter(subject=subject, academic_year=academic_year, semester=semester, status__in=['approved', 'active']).select_related('student')
+
+        # If we have enrollments for the selected term, use them. Otherwise fall back to any saved Grade records
+        if enroll_qs.exists():
+            enrollments = enroll_qs
+            try:
+                participant_count = enrollments.count()
+            except Exception:
+                try:
+                    participant_count = len(list(enrollments))
+                except Exception:
+                    participant_count = 0
+
+            # Attach detailed grade fields from Grade records to each enrollment for template display
+            try:
+                student_ids = [en.student.id for en in enrollments]
+                existing_grades_qs = Grade.objects.filter(subject=subject, student__id__in=student_ids).select_related('student') if student_ids else []
+                existing_grades = {g.student.id: g for g in existing_grades_qs}
+                for en in enrollments:
+                    g = existing_grades.get(en.student.id)
+                    if g:
+                        en.current_score = g.score
+                        en.quiz_score = getattr(g, 'quiz_score', None)
+                        en.mid_score = getattr(g, 'mid_score', None)
+                        en.assignment_score = getattr(g, 'assignment_score', None)
+                        en.final_exam_score = getattr(g, 'final_exam_score', None)
+                        en.remarks = getattr(g, 'remarks', None)
+                    else:
+                        en.current_score = None
+                        en.quiz_score = None
+                        en.mid_score = None
+                        en.assignment_score = None
+                        en.final_exam_score = None
+                        en.remarks = None
+            except Exception:
+                for en in enrollments:
+                    en.current_score = None
+                    en.quiz_score = None
+                    en.mid_score = None
+                    en.assignment_score = None
+                    en.final_exam_score = None
+                    en.remarks = None
+        else:
+            # Fallback: build enrollment-like rows from Grade records so existing results are visible
+            grades_qs = Grade.objects.filter(subject=subject).select_related('student')
+            enrollments = []
+            for g in grades_qs:
+                row = SimpleNamespace()
+                row.student = g.student
+                row.current_score = g.score
+                row.quiz_score = getattr(g, 'quiz_score', None)
+                row.mid_score = getattr(g, 'mid_score', None)
+                row.assignment_score = getattr(g, 'assignment_score', None)
+                row.final_exam_score = getattr(g, 'final_exam_score', None)
+                row.remarks = getattr(g, 'remarks', None)
+                row.id = getattr(g, 'id', None)
+                enrollments.append(row)
+            participant_count = len(enrollments)
     else:
         subject = None
         enrollments = []
@@ -701,6 +787,7 @@ def class_rosters(request):
         'teacher_subjects': teacher_subjects,
         'selected_subject': subject,
         'enrollments': enrollments,
+        'participant_count': participant_count,
     }
     return render(request, 'teachers/class_rosters.html', context)
 
@@ -807,6 +894,7 @@ def performance_reports(request):
         avg_score = 0
         score_distribution = {}
         subject_ranking = []
+        grades_with_rank = []
 
         # If grades were collected (either by subject or grade-level), compute stats and ranks
         if grades:
@@ -838,7 +926,8 @@ def performance_reports(request):
             grades_with_rank = [{'grade': g, 'rank': rank_map.get(g.student.id)} for g in grades_list]
             subject_ranking = [(g.student, g.score, rank_map.get(g.student.id)) for g in scored]
 
-        context = {
+    # Build context once for both subject-specific and grade-level reports
+    context = {
         'teacher_subjects': teacher_subjects,
         'selected_subject': subject,
         'grades': grades,
@@ -853,6 +942,125 @@ def performance_reports(request):
         'selected_semester': request.GET.get('semester') or _get_current_semester(),
     }
     return render(request, 'teachers/performance_reports.html', context)
+
+
+@registrar_required
+def subjects_by_teacher(request):
+    """List subjects assigned to each teacher and students enrolled in a selected grade level.
+
+    Query params: grade_level (optional), academic_year (optional), semester (optional)
+    """
+    grade_level = request.GET.get('grade_level')
+    academic_year = request.GET.get('academic_year') or _get_current_academic_year()
+    semester = request.GET.get('semester') or _get_current_semester()
+
+    # import Teacher model from subjects app if available
+    try:
+        from subjects.models import Teacher as TeacherModel
+    except Exception:
+        TeacherModel = None
+
+    # base queryset for subjects that are assigned to a teacher
+    subjects_qs = Subject.objects.filter(is_active=True, instructor__isnull=False)
+    if grade_level:
+        try:
+            subjects_qs = subjects_qs.filter(grade_level=grade_level)
+        except Exception:
+            pass
+
+    # build mapping teacher -> list of subjects with participant counts
+    teachers_list = []
+    try:
+        # get distinct instructors (Teacher instances) from subjects_qs
+        instructors = subjects_qs.values_list('instructor', flat=True).distinct()
+        if instructors:
+            if TeacherModel is not None:
+                teacher_objs = TeacherModel.objects.filter(id__in=instructors)
+            else:
+                # fallback: try to resolve via User relation
+                teacher_objs = []
+        else:
+            teacher_objs = []
+    except Exception:
+        teacher_objs = []
+
+    for t in teacher_objs:
+        t_subjects = subjects_qs.filter(instructor=t)
+        subject_items = []
+        for s in t_subjects:
+            try:
+                count = Enrollment.objects.filter(subject=s, academic_year=academic_year, semester=semester, status__in=['approved','active']).count()
+            except Exception:
+                try:
+                    count = len(list(Enrollment.objects.filter(subject=s)))
+                except Exception:
+                    count = 0
+            subject_items.append({'subject': s, 'participant_count': count})
+        teachers_list.append({'teacher': t, 'subjects': subject_items})
+
+    # list of students in the selected grade level
+    students_in_grade = []
+    if grade_level:
+        try:
+            students_in_grade = User.objects.filter(role='student', studentprofile__grade_level=grade_level)
+        except Exception:
+            students_in_grade = []
+
+    context = {
+        'teachers_list': teachers_list,
+        'students_in_grade': students_in_grade,
+        'grade_level': grade_level,
+        'academic_year': academic_year,
+        'semester': semester,
+        'grade_choices': getattr(Subject, 'GRADE_LEVEL_CHOICES', []),
+    }
+    return render(request, 'teachers/subjects_by_teacher.html', context)
+
+
+@teacher_required
+def subjects_with_students(request):
+    """List all subjects that have enrolled students and the students in each subject.
+
+    Supports optional filters: `grade_level`, `academic_year`, `semester`.
+    """
+    grade_level = request.GET.get('grade_level')
+    academic_year = request.GET.get('academic_year') or _get_current_academic_year()
+    semester = request.GET.get('semester') or _get_current_semester()
+
+    # base enrollments for the selected term and active/approved students
+    enroll_qs = Enrollment.objects.filter(status__in=['approved', 'active'], academic_year=academic_year, semester=semester).select_related('student', 'subject')
+    if grade_level:
+        try:
+            enroll_qs = enroll_qs.filter(student__studentprofile__grade_level=grade_level)
+        except Exception:
+            pass
+
+    # group enrollments by subject
+    subjects_map = {}
+    try:
+        for en in enroll_qs:
+            subj = en.subject
+            if subj is None:
+                continue
+            key = subj.id
+            if key not in subjects_map:
+                subjects_map[key] = {'subject': subj, 'students': [], 'participant_count': 0}
+            subjects_map[key]['students'].append(en.student)
+            subjects_map[key]['participant_count'] += 1
+    except Exception:
+        subjects_map = {}
+
+    # convert to list sorted by subject name/code
+    subjects_list = sorted(subjects_map.values(), key=lambda x: getattr(x['subject'], 'name', str(x['subject'])))
+
+    context = {
+        'subjects_list': subjects_list,
+        'grade_level': grade_level,
+        'academic_year': academic_year,
+        'semester': semester,
+        'grade_choices': getattr(Subject, 'GRADE_LEVEL_CHOICES', []),
+    }
+    return render(request, 'teachers/subjects_with_students.html', context)
 
 
 @teacher_required

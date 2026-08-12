@@ -16,7 +16,11 @@
             {{ form.message }}
         </div>
         <button class="btn btn-primary">Send</button>
-        <a href="{% url 'contact_teachers' student_id=request.GET.student_id %}" class="btn btn-secondary">Cancel</a>
+        {% if request.GET.student_id %}
+            <a href="{% url 'contact_teachers' student_id=request.GET.student_id %}" class="btn btn-secondary">Cancel</a>
+        {% else %}
+            <a href="{% url 'parent_contact_teachers_overview' %}" class="btn btn-secondary">Cancel</a>
+        {% endif %}
     </form>
 </div>
 {% endblock %}

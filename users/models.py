@@ -62,6 +62,15 @@ class StudentProfile(models.Model):
     current_semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES, default='first')
     academic_year = models.CharField(max_length=9, default='2024-2025')
     enrollment_date = models.DateField(auto_now_add=True)
+    # Home room teacher who manages this student's records
+    homeroom = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        limit_choices_to={'role': 'teacher'},
+        related_name='homeroom_students'
+    )
     
     def __str__(self):
         return f"Student: {self.user.get_full_name()} (Grade {self.grade_level})"

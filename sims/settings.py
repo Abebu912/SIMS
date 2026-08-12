@@ -11,7 +11,8 @@ SECRET_KEY = 'your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+# Added local LAN IP so other devices can access the dev server.
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '172.16.23.219']
 
 # Application definition
 INSTALLED_APPS = [

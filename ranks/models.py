@@ -20,6 +20,9 @@ class Grade(models.Model):
     final_exam_score = models.PositiveIntegerField(null=True, blank=True, help_text='Final exam score (max 50)')
     remarks = models.TextField(blank=True)
     graded_at = models.DateTimeField(auto_now_add=True)
+    # Mark when a grade has been finalized/submitted by the teacher
+    is_finalized = models.BooleanField(default=False)
+    finalized_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ['student', 'subject']

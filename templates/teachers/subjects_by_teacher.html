@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Subjects by Teacher{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2>Subjects Assigned per Teacher</h2>
+  <form method="get" class="mb-3 form-inline">
+    <label for="grade_level" class="mr-2">Grade:</label>
+    <select id="grade_level" name="grade_level" class="mr-3" onchange="this.form.submit()">
+      <option value="">--All Grades--</option>
+      {% for code, label in grade_choices %}
+      <option value="{{ code }}" {% if grade_level and grade_level|stringformat:"s" == code|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="academic_year" class="mr-2">Academic Year:</label>
+    <input type="text" name="academic_year" value="{{ academic_year }}" class="mr-3" onchange="this.form.submit()" />
+
+    <label for="semester" class="mr-2">Semester:</label>
+    <select id="semester" name="semester" class="mr-3" onchange="this.form.submit()">
+      <option value="first" {% if semester == 'first' %}selected{% endif %}>First</option>
+      <option value="second" {% if semester == 'second' %}selected{% endif %}>Second</option>
+      <option value="summer" {% if semester == 'summer' %}selected{% endif %}>Summer</option>
+    </select>
+  </form>
+
+  <div class="mb-4">
+    {% if grade_level %}
+      <h4>Students enrolled in Grade {{ grade_level }} ({{ students_in_grade|length }})</h4>
+      <ul>
+        {% for s in students_in_grade %}
+          <li>{{ s.get_full_name }} {% if s.studentprofile.student_id %}({{ s.studentprofile.student_id }}){% endif %}</li>
+        {% endfor %}
+        {% if not students_in_grade %}
+          <li>No students found for this grade.</li>
+        {% endif %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div>
+    {% if teachers_list %}
+      {% for t in teachers_list %}
+      <div class="card mb-3">
+        <div class="card-header">
+          {{ t.teacher.user.get_full_name if t.teacher and t.teacher.user else t.teacher }}
+        </div>
+        <div class="card-body">
+          {% if t.subjects %}
+          <table class="table table-sm">
+            <thead><tr><th>Subject</th><th>Code</th><th>Participants ({{ academic_year }} {{ semester }})</th></tr></thead>
+            <tbody>
+              {% for item in t.subjects %}
+              <tr>
+                <td>{{ item.subject.name }}</td>
+                <td>{{ item.subject.code }}</td>
+                <td>{{ item.participant_count }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+            <p>No assigned subjects for this teacher.</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p>No assigned subjects found for the selected filters.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

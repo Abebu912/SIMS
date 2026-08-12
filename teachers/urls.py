@@ -13,6 +13,7 @@ urlpatterns = [
     path('enter-score/<int:student_id>/<int:subject_id>/', user_views.enter_numeric_score, name='enter_numeric_score'),
     path('bulk-score-upload/<int:subject_id>/', views.bulk_grade_upload, name='bulk_grade_upload'),
     path('subject-statistics/<int:subject_id>/', views.get_subject_statistics, name='get_subject_statistics'),
-    
+    path('subjects-by-teacher/', views.subjects_by_teacher, name='subjects_by_teacher'),
+    path('subjects-with-students/', views.subjects_with_students, name='subjects_with_students'),
     path('save-score/', views.save_student_score, name='save_student_score'),
 ]

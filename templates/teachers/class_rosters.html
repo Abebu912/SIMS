@@ -14,22 +14,30 @@
   </form>
 
   {% if selected_subject %}
-  <h4>Students in {{ selected_subject.name }}</h4>
-  <table class="table">
-    <thead><tr><th>Student</th><th>Current Score</th><th>Actions</th></tr></thead>
+  <h4>Students in {{ selected_subject.name }} ({{ participant_count }})</h4>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th class="text-center">Quiz</th>
+        <th class="text-center">Mid</th>
+        <th class="text-center">Assignment</th>
+        <th class="text-center">Final</th>
+        <th class="text-center">Total</th>
+        <th>Remarks</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
     <tbody>
       {% for en in enrollments %}
       <tr>
         <td>{{ en.student.get_full_name }}</td>
-        <td>
-          {% with scores=en.student.grade_set.all|dictsort:"subject__id" %}
-            {% for g in en.student.grade_set.all %}
-              {% if g.subject.id == selected_course.id %}
-                {{ g.score }}
-              {% endif %}
-            {% endfor %}
-          {% endwith %}
-        </td>
+        <td class="text-center">{% if en.quiz_score is not None %}{{ en.quiz_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if en.mid_score is not None %}{{ en.mid_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if en.assignment_score is not None %}{{ en.assignment_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if en.final_exam_score is not None %}{{ en.final_exam_score }}{% else %}-{% endif %}</td>
+        <td class="text-center">{% if en.current_score is not None %}{{ en.current_score }}{% else %}-{% endif %}</td>
+        <td>{% if en.remarks %}{{ en.remarks }}{% else %}-{% endif %}</td>
         <td>
           <a href="/teachers/update-grade/{{ en.id }}/" class="btn btn-sm btn-primary">Update Score</a>
         </td>

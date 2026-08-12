@@ -45,6 +45,12 @@ def registrar_dashboard(request):
         'unread_notifications': unread_notifications,
         'unread_count': unread_count,
     }
+    # Include recent finalized grade submissions for registrar review
+    try:
+        recent_final_submissions = Grade.objects.filter(is_finalized=True).order_by('-finalized_at')[:20]
+    except Exception:
+        recent_final_submissions = []
+    context['recent_final_submissions'] = recent_final_submissions
     return render(request, 'registrar/registrar_dashboard.html', context)
 
 @registrar_required

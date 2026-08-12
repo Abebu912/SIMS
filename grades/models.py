@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from users.models import User
 from subjects.models import Subject
 
@@ -9,6 +11,22 @@ class Grade(models.Model):
     grade = models.CharField(max_length=5, null=True, blank=True)
     remarks = models.TextField(blank=True)
     graded_at = models.DateTimeField(auto_now_add=True)
+    # Submission workflow: teachers submit grades to the student's homeroom teacher
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted to Homeroom'),
+        ('approved', 'Approved/Final'),
+        ('revised', 'Revised by Homeroom'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='approved')
+    submitted_to = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='grade_submissions',
+        limit_choices_to={'role': 'teacher'}
+    )
     
     class Meta:
         unique_together = ['student', 'course']
@@ -29,6 +47,49 @@ class Grade(models.Model):
             'F': 0.0
         }
         return grade_points.get(self.grade.upper(), 0.0)
+
+class GradeChangeLog(models.Model):
+    """Keep history of grade changes to avoid data loss when homeroom modifies records."""
+    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='change_logs')
+    previous_grade = models.CharField(max_length=20, null=True, blank=True)
+    previous_remarks = models.TextField(blank=True)
+    previous_teacher = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='previous_grade_logs')
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='grade_changes')
+    note = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"ChangeLog: {self.grade} at {self.changed_at}"
+
+
+@receiver(pre_save, sender=Grade)
+def record_grade_change(sender, instance, **kwargs):
+    """Record previous grade values before saving if there was a change."""
+    if not instance.pk:
+        # New grade, nothing to record
+        return
+    try:
+        previous = Grade.objects.get(pk=instance.pk)
+    except Grade.DoesNotExist:
+        return
+
+    # If any tracked field changed, create a log entry
+    fields_changed = (
+        previous.grade != instance.grade or
+        previous.remarks != instance.remarks or
+        previous.teacher_id != instance.teacher_id or
+        previous.status != instance.status
+    )
+
+    if fields_changed:
+        GradeChangeLog.objects.create(
+            grade=instance,
+            previous_grade=previous.grade,
+            previous_remarks=previous.remarks,
+            previous_teacher=previous.teacher,
+            changed_by=None,  # views should set this when available
+            note='Auto-captured change'
+        )
 
 class Transcript(models.Model):
     """Model to store student transcripts"""

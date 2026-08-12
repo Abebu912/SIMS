@@ -408,8 +408,48 @@ def request_meeting(request, student_id, teacher_id):
         meeting_time = request.POST.get('meeting_time')
         purpose = request.POST.get('purpose')
         
-        # In a real system, you would create a meeting request in the database
-        messages.success(request, f'Meeting request sent to {teacher.get_full_name()} for {meeting_date} at {meeting_time}.')
+        # Persist the meeting request and notify the teacher
+        try:
+            from .models import MeetingRequest
+            from notifications.models import Notification
+
+            mr = MeetingRequest.objects.create(
+                parent=request.user,
+                student=child_link.student,
+                teacher=teacher,
+                meeting_date=meeting_date or '',
+                meeting_time=meeting_time or '',
+                purpose=purpose or '',
+                status='pending'
+            )
+
+            # Create an in-app notification for the teacher
+            try:
+                Notification.objects.create(
+                    user=teacher,
+                    title='Meeting Request',
+                    message=f'{request.user.get_full_name() or request.user.username} requested a meeting for {meeting_date} at {meeting_time}.',
+                    link=f'/parents/meeting-requests/'
+                )
+            except Exception:
+                pass
+
+            # Send an email to the teacher if available
+            try:
+                if teacher.email:
+                    send_mail(
+                        subject=f'Meeting request from {request.user.get_full_name() or request.user.username}',
+                        message=f'Parent {request.user.get_full_name() or request.user.username} has requested a meeting regarding {child_link.student.get_full_name() or child_link.student.username} on {meeting_date} at {meeting_time}.\n\nPurpose:\n{purpose}',
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                        recipient_list=[teacher.email],
+                        fail_silently=True,
+                    )
+            except Exception:
+                pass
+
+            messages.success(request, f'Meeting request sent to {teacher.get_full_name()} for {meeting_date} at {meeting_time}.')
+        except Exception:
+            messages.error(request, 'Failed to create meeting request; please try again later.')
         return redirect('contact_teachers', student_id=student_id)
     
     context = {
