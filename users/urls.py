@@ -6,6 +6,7 @@ urlpatterns = [
     path('manage-users/', admin_views.manage_users, name='manage_users'),
     path('add-user/', admin_views.add_user, name='add_user'),
     path('admin-panel/', admin_views.admin_panel, name='admin_panel'),
+    path('manage-users/edit/<int:user_id>/', admin_views.edit_user, name='edit_user'),
     path('manage-users/', admin_views.manage_users, name='manage_users'),
     path('add-user/', admin_views.add_user, name='add_user'),
     path('system-settings/', admin_views.system_settings, name='system_settings'),
@@ -34,4 +35,9 @@ path('registrar/approve-registrations/', views.approve_registrations, name='appr
     path('registrar/generate-transcript/<int:student_id>/', views.generate_transcript, name='generate_transcript')
     ,
     path('registrar/student/<int:student_id>/subjects/', views.registrar_student_subjects, name='registrar_student_subjects')
+    ,path('registrar/pass-students/', views.registrar_pass_list, name='registrar_pass_list')
+    ,path('registrar/pass-student/<int:student_id>/', views.registrar_pass_student, name='registrar_pass_student')
+    ,path('registrar/bulk-pass/', views.registrar_bulk_pass, name='registrar_bulk_pass')
+    ,path('registrar/fail-student/<int:student_id>/', views.registrar_fail_student, name='registrar_fail_student')
+    ,path('registrar/bulk-fail/', views.registrar_bulk_fail, name='registrar_bulk_fail')
     ]

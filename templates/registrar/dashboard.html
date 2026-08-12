@@ -5,6 +5,22 @@
 {% block title %}Registrar Dashboard - SIMS{% endblock %}
 
 {% block content %}
+<script>
+    (function(){
+        const key = 'tab_auth';
+        try{
+            const hasTabAuth = sessionStorage.getItem(key);
+            if(!hasTabAuth){
+                // redirect to login so the user must authenticate in this tab before making changes
+                const loginUrl = "{% url 'login' %}";
+                const next = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.href = loginUrl + '?next=' + next;
+            }
+        }catch(e){
+            // sessionStorage may be unavailable; fall back to allowing server-side login_required to protect this page
+        }
+    })();
+</script>
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
@@ -110,6 +126,12 @@
                                     <a href="{% url 'approve_registrations' %}" class="btn btn-outline-warning btn-lg w-100 h-100 py-3">
                                         <i class="fas fa-clipboard-check fa-2x mb-2"></i><br>
                                         Registration Approvals
+                                    </a>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <a href="{% url 'registrar_pass_list' %}" class="btn btn-outline-secondary btn-lg w-100 h-100 py-3">
+                                        <i class="fas fa-arrow-up fa-2x mb-2"></i><br>
+                                        Pass Students
                                     </a>
                                 </div>
                             </div>

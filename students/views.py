@@ -103,6 +103,7 @@ def student_dashboard(request):
         'unread_notifications': unread_notifications,
         'unread_count': unread_count,
         'recent_announcements': relevant_announcements,
+        'balance': getattr(request.user.studentprofile, 'balance', 0),
     }
     # Build enrolled_courses list for dashboard template from enrollments
     enrolled_courses = []
@@ -623,27 +624,111 @@ def pay_fees(request):
     fee_structures = FeeStructure.objects.filter(is_active=True)
     student_payments = Payment.objects.filter(student=request.user).select_related('fee_structure')
     
+    # Two-step payment flow using a simple gateway simulation.
+    # POST action values:
+    #  - start_payment: open gateway to choose method (bank or mobile)
+    #  - confirm_payment: process payment via selected method
+    #  - clear: clear any pending selection
     if request.method == 'POST':
-        fee_structure_id = request.POST.get('fee_structure_id')
-        fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
-        
-        # Check if payment already exists
-        if Payment.objects.filter(student=request.user, fee_structure=fee_structure, status='completed').exists():
-            messages.warning(request, 'You have already paid this fee.')
-        else:
-            # Create payment (simplified - integrate with payment gateway in production)
-            payment = Payment.objects.create(
-                student=request.user,
-                fee_structure=fee_structure,
-                amount_paid=fee_structure.amount,
-                payment_method='Online',
-                transaction_id=f"TXN{request.user.id}{timezone.now().timestamp()}",
-                status='completed'
-            )
-            
-            messages.success(request, f'Payment of ${fee_structure.amount} completed successfully!')
-        
-        return redirect('pay_fees')
+        action = request.POST.get('action') or request.POST.get('submit')
+        # Allow clearing an existing completed payment (mark is_cleared)
+        if action == 'clear_payment':
+            pid = request.POST.get('payment_id')
+            try:
+                p = Payment.objects.get(id=pid, student=request.user)
+                if p.status == 'completed':
+                    p.is_cleared = True
+                    p.save()
+                    messages.success(request, 'Payment cleared from your list.')
+                else:
+                    messages.warning(request, 'Only completed payments can be cleared.')
+            except Payment.DoesNotExist:
+                messages.error(request, 'Payment not found.')
+            return redirect('pay_fees')
+        if action == 'clear':
+            request.session.pop('pending_fee_id', None)
+            messages.info(request, 'Selection cleared.')
+            return redirect('pay_fees')
+
+        if action == 'start_payment':
+            fee_structure_id = request.POST.get('fee_structure_id')
+            fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+            # store pending fee in session until user confirms via gateway
+            request.session['pending_fee_id'] = fee_structure.id
+            return render(request, 'students/payment_gateway.html', {
+                'fee': fee_structure,
+            })
+
+        if action == 'confirm_payment':
+            # Confirming payment from gateway page
+            fee_id = request.session.get('pending_fee_id')
+            if not fee_id:
+                messages.error(request, 'No pending payment found. Please start payment again.')
+                return redirect('pay_fees')
+
+            fee_structure = get_object_or_404(FeeStructure, id=fee_id)
+            payment_method = request.POST.get('payment_method') or 'Unknown'
+
+            # Simulate gateway processing. In production this would be delegated
+            # to a real payment actor / API and verify callbacks/webhooks.
+            import uuid
+            txn_id = f"GW-{uuid.uuid4().hex[:12]}"
+
+            # For simulation we treat both 'bank' and 'mobile' as successful
+            status = 'completed'
+
+            from decimal import Decimal
+            from django.db import transaction
+
+            amount = Decimal(str(fee_structure.amount))
+
+            # Check balance and perform atomic payment + deduction
+            try:
+                sp = request.user.studentprofile
+            except Exception:
+                sp = None
+
+            if sp is None:
+                messages.error(request, 'Student profile not found. Cannot complete payment.')
+                return redirect('pay_fees')
+
+            with transaction.atomic():
+                sp.refresh_from_db()
+                if (sp.balance or Decimal('0.00')) < amount:
+                    messages.error(request, 'Insufficient balance to complete payment.')
+                    return redirect('pay_fees')
+
+                payment = Payment.objects.create(
+                    student=request.user,
+                    fee_structure=fee_structure,
+                    amount_paid=amount,
+                    payment_method=payment_method,
+                    transaction_id=txn_id,
+                    status=status
+                )
+
+                sp.balance = (sp.balance or Decimal('0.00')) - amount
+                sp.save()
+
+                # Credit school's finance account
+                try:
+                    from users.models import FinanceProfile
+                    fin = FinanceProfile.objects.select_for_update().filter(user__role='finance', user__is_active=True).first()
+                    if fin:
+                        fin.balance = (fin.balance or Decimal('0.00')) + amount
+                        fin.save()
+                except Exception:
+                    pass
+
+            # Clear pending session
+            request.session.pop('pending_fee_id', None)
+
+            if payment.status == 'completed':
+                messages.success(request, f'Payment of ${payment.amount_paid} completed successfully via {payment_method}.')
+            else:
+                messages.error(request, f'Payment failed or pending.')
+
+            return redirect('pay_fees')
     
     context = {
         'fee_structures': fee_structures,

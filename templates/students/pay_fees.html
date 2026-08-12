@@ -15,7 +15,10 @@
           {% endfor %}
         </select>
       </div>
-      <button class="btn btn-primary" type="submit">Pay Now</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit" name="action" value="start_payment">Pay Now</button>
+        <button class="btn btn-outline-secondary" type="submit" name="action" value="clear">Clear</button>
+      </div>
     </form>
   {% else %}
     <div class="alert alert-info">No active fees available at the moment.</div>
@@ -25,15 +28,26 @@
   <h4>Your Payments</h4>
   {% if payments.exists %}
     <table class="table">
-      <thead><tr><th>Fee</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+      <thead><tr><th>Fee</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>
         {% for p in payments %}
+        {% if not p.is_cleared %}
         <tr>
           <td>{{ p.fee_structure.name }}</td>
           <td>{{ p.amount_paid }}</td>
           <td>{{ p.status }}</td>
           <td>{{ p.created_at|date:"M d, Y H:i" }}</td>
+          <td>
+            {% if p.status == 'completed' %}
+            <form method="post" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="payment_id" value="{{ p.id }}">
+              <button class="btn btn-sm btn-outline-secondary" type="submit" name="action" value="clear_payment">Clear</button>
+            </form>
+            {% endif %}
+          </td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

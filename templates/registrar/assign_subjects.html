@@ -7,16 +7,31 @@
 
   <form method="get" class="row g-2 mb-3">
     <div class="col-auto">
-      <input type="number" name="grade_level" class="form-control" placeholder="Grade level" min="1" max="12" value="{{ filter_grade_level }}">
+      <select name="grade_level" class="form-select">
+        <option value="">-- Grade level --</option>
+        {% for val,label in grade_levels %}
+          <option value="{{ val }}" {% if filter_grade_level|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="col-auto">
+      {% if academic_years %}
+      <select name="academic_year" class="form-select">
+        <option value="">-- Academic year --</option>
+        {% for y in academic_years %}
+          <option value="{{ y }}" {% if filter_academic_year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
       <input type="text" name="academic_year" class="form-control" placeholder="Academic year (e.g. 2025-2026)" value="{{ filter_academic_year }}">
+      {% endif %}
     </div>
     <div class="col-auto">
       <select name="semester" class="form-select">
         <option value="">-- Semester (optional) --</option>
-        <option value="first" {% if filter_semester == 'first' %}selected{% endif %}>First</option>
-        <option value="second" {% if filter_semester == 'second' %}selected{% endif %}>Second</option>
+        {% for val,label in semesters %}
+          <option value="{{ val }}" {% if filter_semester == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="col-auto">
@@ -37,14 +52,24 @@
         </select>
         <div class="mt-2">
           <label class="form-label small">Academic Year <span class="text-danger">*</span></label>
+          {% if academic_years %}
+          <select name="academic_year" class="form-select" required>
+            <option value="">-- Select Academic Year --</option>
+            {% for y in academic_years %}
+              <option value="{{ y }}" {% if filter_academic_year == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
           <input type="text" name="academic_year" class="form-control" placeholder="e.g. 2025-2026" required value="{{ filter_academic_year }}">
+          {% endif %}
         </div>
         <div class="mt-2">
           <label class="form-label small">Semester <span class="text-danger">*</span></label>
           <select name="semester" class="form-select" required>
             <option value="">-- Select Semester --</option>
-            <option value="first" {% if filter_semester == 'first' %}selected{% endif %}>First</option>
-            <option value="second" {% if filter_semester == 'second' %}selected{% endif %}>Second</option>
+            {% for val,label in semesters %}
+              <option value="{{ val }}" {% if filter_semester == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
       </div>

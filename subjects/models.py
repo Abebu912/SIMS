@@ -78,6 +78,8 @@ class Subject(models.Model):
     assigned_by_registrar = models.BooleanField(default=False)
     
     max_capacity = models.IntegerField(default=30)
+    # Optional: academic year when this subject is offered (format: YYYY-YYYY)
+    academic_year = models.CharField(max_length=9, blank=True, null=True, help_text='Format: YYYY-YYYY (e.g., 2025-2026)')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

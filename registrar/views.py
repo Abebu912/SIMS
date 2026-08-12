@@ -8,7 +8,7 @@ from subjects.models import Subject, Enrollment
 from ranks.models import Grade, calculate_student_average
 from teachers.views import enroll_students_for_subject
 from django.db.utils import OperationalError
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
 from notifications.models import Notification
 from django.core.mail import send_mail
 from django.conf import settings
@@ -313,6 +313,16 @@ def assign_subjects_to_teacher(request):
         except Exception:
             pass
 
+    # If academic year and semester are provided, only show subjects that have
+    # available capacity for that year/semester (i.e., enrolled_count < max_capacity)
+    if academic_year and semester:
+        try:
+            available_qs = available_qs.annotate(
+                enrolled_count=Count('enrollments', filter=Q(enrollments__academic_year=academic_year, enrollments__semester=semester))
+            ).filter(Q(enrolled_count__lt=F('max_capacity')) | Q(enrolled_count__isnull=True))
+        except Exception:
+            pass
+
     available_subjects = available_qs.order_by('grade_level', 'code')
 
     # Also provide currently assigned subjects (so registrar can unassign individual ones)
@@ -407,6 +417,10 @@ def assign_subjects_to_teacher(request):
         'filter_grade_level': grade_level,
         'filter_academic_year': academic_year,
         'filter_semester': semester,
+        # Dropdown data for filters
+        'grade_levels': Subject.GRADE_LEVEL_CHOICES,
+        'academic_years': Enrollment.objects.values_list('academic_year', flat=True).distinct().order_by('-academic_year'),
+        'semesters': Enrollment.SEMESTER_CHOICES,
     }
     return render(request, 'registrar/assign_subjects.html', context)
 

@@ -9,6 +9,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
 from users.views import CustomPasswordResetView, CustomPasswordResetDoneView
+from django.conf.urls.i18n import i18n_patterns
+from django.urls import include as url_include
 
 urlpatterns = [
     
@@ -61,6 +63,11 @@ urlpatterns = [
     path("api/payments/", include("payments.urls")),
     path("api/notifications/", include("notifications.urls")),
     path("api/ai/", include("ai_advisor.urls")),
+]
+
+# add i18n set_language views
+urlpatterns += [
+    path('i18n/', url_include('django.conf.urls.i18n')),
 ]
 
 if settings.DEBUG:

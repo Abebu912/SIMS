@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
 
 {% block title %}Login - Student Management System{% endblock %}
 
@@ -11,9 +12,10 @@
                 <div class="card shadow-lg border-0">
                     <div class="card-header bg-primary text-white text-center py-4">
                         <h3 class="card-title mb-0">
-                            <i class="fas fa-sign-in-alt me-2"></i>User Login
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            <span data-i18n="LOGIN_TITLE">{% trans "User Login" %}</span>
                         </h3>
-                        <p class="mb-0 mt-2">Welcome back to SIMS</p>
+                        <p class="mb-0 mt-2" data-i18n="LOGIN_WELCOME">{% trans "Welcome back to SIMS" %}</p>
                     </div>
                     <div class="card-body p-5">
                         {% if messages %}
@@ -25,49 +27,59 @@
                             {% endfor %}
                         {% endif %}
 
-                        <form method="POST">
+                        <form method="POST" id="loginForm">
                             {% csrf_token %}
                             
                             {% if form.errors %}
                                 <div class="alert alert-danger alert-dismissible fade show">
                                     <i class="fas fa-exclamation-triangle me-2"></i>
-                                    Please enter a correct username and password.
+                                    <span data-i18n="LOGIN_ERROR">{% trans "Please enter a correct username and password." %}</span>
                                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                                 </div>
                             {% endif %}
                             
                             <div class="mb-4">
-                                <label for="username" class="form-label fw-semibold">Username</label>
+                                <label for="username" class="form-label fw-semibold" data-i18n="USERNAME_LABEL">{% trans "Username" %}</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0">
                                         <i class="fas fa-user text-primary"></i>
                                     </span>
-                                    <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="Enter your username" required>
+                                    <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="{% trans "Enter your username" %}" data-i18n-placeholder="ENTER_USERNAME" required>
                                 </div>
                             </div>
                             
                             <div class="mb-4">
-                                <label for="password" class="form-label fw-semibold">Password</label>
+                                <label for="password" class="form-label fw-semibold" data-i18n="PASSWORD_LABEL">{% trans "Password" %}</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0">
                                         <i class="fas fa-lock text-primary"></i>
                                     </span>
-                                    <input type="password" class="form-control border-start-0" id="password" name="password" placeholder="Enter your password" required>
+                                    <input type="password" class="form-control border-start-0" id="password" name="password" placeholder="{% trans "Enter your password" %}" data-i18n-placeholder="ENTER_PASSWORD" required>
                                 </div>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100 py-3 fw-semibold">
-                                <i class="fas fa-sign-in-alt me-2"></i> Login
+                            <button type="submit" class="btn btn-primary w-100 py-3 fw-semibold" data-i18n="LOGIN_BTN">
+                                <i class="fas fa-sign-in-alt me-2"></i> {% trans "Login" %}
                             </button>
                         </form>
+                        <script>
+                            (function(){
+                                const form = document.getElementById('loginForm');
+                                if(!form) return;
+                                form.addEventListener('submit', function(){
+                                    try{
+                                        sessionStorage.setItem('tab_auth', '1');
+                                    }catch(e){
+                                        // ignore (privacy mode may block sessionStorage)
+                                    }
+                                });
+                            })();
+                        </script>
                         
                         <div class="text-center mt-4">
-                            <p class="mb-2">Don't have an account? 
-                                <a href="{% url 'register' %}" class="text-decoration-none fw-semibold">Register here</a>
-                            </p>
                             <p class="mb-0">
-                                <a href="{% url 'password_reset' %}" class="text-decoration-none">
-                                    <i class="fas fa-key me-1"></i>Forgot your password?
+                                <a href="{% url 'password_reset' %}" class="text-decoration-none" data-i18n="FORGOT_PASSWORD">
+                                    <i class="fas fa-key me-1"></i>{% trans "Forgot your password?" %}
                                 </a>
                             </p>
                         </div>
@@ -75,8 +87,8 @@
                         <hr class="my-4">
 
                         <div class="text-center">
-                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Home
+                            <a href="{% url 'home' %}" class="btn btn-outline-secondary" data-i18n="BACK_TO_HOME">
+                                <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Home" %}
                             </a>
                         </div>
                     </div>

@@ -462,3 +462,68 @@ class AnnouncementForm(forms.Form):
     content = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Enter announcement content'}))
     target_roles = forms.MultipleChoiceField(choices=User.ROLE_CHOICES, required=False, widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}), help_text="Select which roles should see this announcement (leave empty for all)")
     is_active = forms.BooleanField(initial=True, required=False, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}), help_text="Show this announcement to users")
+
+
+class AdminUserEditForm(forms.ModelForm):
+    """Form for admins to edit existing users (basic fields + role/status).
+
+    Password is left out here; to change password use the admin or a separate
+    password-reset flow.
+    """
+    role = forms.ChoiceField(choices=User.ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
+    is_approved = forms.BooleanField(required=False, widget=forms.CheckboxInput())
+    is_active = forms.BooleanField(required=False, widget=forms.CheckboxInput())
+
+    # Optional profile fields administrators may update
+    grade_level = forms.ChoiceField(choices=StudentProfile.GRADE_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
+    academic_year = forms.ChoiceField(choices=UserRegistrationForm._build_academic_year_choices() if hasattr(UserRegistrationForm, '_build_academic_year_choices') else [], required=False, widget=forms.Select(attrs={'class': 'form-control'}))
+    department = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    occupation = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    office = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    finance_id = forms.CharField(max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_approved', 'phone', 'date_of_birth', 'grade_level', 'academic_year', 'department', 'occupation', 'office', 'finance_id']
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            user.save()
+            # Update/create related profiles sensibly
+            role = self.cleaned_data.get('role')
+            if role == 'student':
+                sp, created = StudentProfile.objects.get_or_create(user=user)
+                sp.grade_level = self.cleaned_data.get('grade_level') or sp.grade_level
+                sp.academic_year = self.cleaned_data.get('academic_year') or sp.academic_year
+                sp.save()
+            elif role == 'teacher':
+                tp, created = TeacherProfile.objects.get_or_create(user=user)
+                tp.department = self.cleaned_data.get('department') or tp.department
+                tp.save()
+            elif role == 'parent':
+                try:
+                    pp = ParentProfile.objects.get(user=user)
+                    pp.occupation = self.cleaned_data.get('occupation') or pp.occupation
+                    pp.save()
+                except ParentProfile.DoesNotExist:
+                    if self.cleaned_data.get('occupation'):
+                        ParentProfile.objects.create(user=user, occupation=self.cleaned_data.get('occupation'))
+            elif role == 'registrar':
+                try:
+                    rp = RegistrarProfile.objects.get(user=user)
+                    rp.office = self.cleaned_data.get('office') or rp.office
+                    rp.save()
+                except Exception:
+                    if self.cleaned_data.get('office'):
+                        RegistrarProfile.objects.create(user=user, office=self.cleaned_data.get('office'))
+            elif role == 'finance':
+                try:
+                    fp = FinanceProfile.objects.get(user=user)
+                    fp.finance_id = self.cleaned_data.get('finance_id') or fp.finance_id
+                    fp.save()
+                except Exception:
+                    if self.cleaned_data.get('finance_id'):
+                        FinanceProfile.objects.create(user=user, finance_id=self.cleaned_data.get('finance_id'))
+
+        return user

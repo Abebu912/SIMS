@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
 
 {% block title %}Register - SIMS{% endblock %}
 
@@ -11,9 +12,10 @@
                 <div class="card shadow-lg border-0">
                     <div class="card-header bg-primary text-white text-center py-4">
                         <h3 class="mb-0">
-                            <i class="fas fa-user-plus me-2"></i>Create Account
+                            <i class="fas fa-user-plus me-2"></i>
+                            <span data-i18n="CREATE_ACCOUNT_TITLE">{% trans "Create Account" %}</span>
                         </h3>
-                        <p class="mb-0 mt-2">Join Student Information Management System</p>
+                        <p class="mb-0 mt-2" data-i18n="CREATE_ACCOUNT_LEAD">{% trans "Join Student Information Management System" %}</p>
                     </div>
                     <div class="card-body p-4 p-md-5">
                         <form method="post" enctype="multipart/form-data">
@@ -22,7 +24,7 @@
                             {% if form.errors %}
                             <div class="alert alert-danger">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                Please correct the errors below.
+                                <span data-i18n="REGISTER_ERRORS">{% trans "Please correct the errors below." %}</span>
                                 {% for field, errors in form.errors.items %}
                                     {% for error in errors %}
                                         <div class="small">{{ field }}: {{ error }}</div>
@@ -44,10 +46,11 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_username" class="form-label fw-semibold">
-                                            <i class="fas fa-user me-1 text-primary"></i>Username
+                                            <i class="fas fa-user me-1 text-primary"></i>
+                                            <span data-i18n="USERNAME_LABEL">{% trans "Username" %}</span>
                                         </label>
                                         <input type="text" name="username" id="id_username" class="form-control" 
-                                               placeholder="Choose a username" required
+                                               placeholder="{% trans "Choose a username" %}" data-i18n-placeholder="REGISTER_ENTER_USERNAME" required
                                                value="{{ form.username.value|default:'' }}">
                                         {% if form.username.errors %}
                                             <div class="text-danger small mt-1">{{ form.username.errors }}</div>
@@ -57,10 +60,11 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_email" class="form-label fw-semibold">
-                                            <i class="fas fa-envelope me-1 text-primary"></i>Email
+                                            <i class="fas fa-envelope me-1 text-primary"></i>
+                                            <span data-i18n="EMAIL_LABEL">{% trans "Email" %}</span>
                                         </label>
                                         <input type="email" name="email" id="id_email" class="form-control" 
-                                               placeholder="Enter your email" required
+                                               placeholder="{% trans "Enter your email" %}" data-i18n-placeholder="REGISTER_ENTER_EMAIL" required
                                                value="{{ form.email.value|default:'' }}">
                                         {% if form.email.errors %}
                                             <div class="text-danger small mt-1">{{ form.email.errors }}</div>
@@ -73,20 +77,22 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_first_name" class="form-label fw-semibold">
-                                            <i class="fas fa-signature me-1 text-primary"></i>First Name
+                                            <i class="fas fa-signature me-1 text-primary"></i>
+                                            <span data-i18n="FIRST_NAME_LABEL">{% trans "First Name" %}</span>
                                         </label>
                                         <input type="text" name="first_name" id="id_first_name" class="form-control" 
-                                               placeholder="Enter first name" required
+                                               placeholder="{% trans "Enter first name" %}" data-i18n-placeholder="REGISTER_ENTER_FIRSTNAME" required
                                                value="{{ form.first_name.value|default:'' }}">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_last_name" class="form-label fw-semibold">
-                                            <i class="fas fa-signature me-1 text-primary"></i>Last Name
+                                            <i class="fas fa-signature me-1 text-primary"></i>
+                                            <span data-i18n="LAST_NAME_LABEL">{% trans "Last Name" %}</span>
                                         </label>
                                         <input type="text" name="last_name" id="id_last_name" class="form-control" 
-                                               placeholder="Enter last name" required
+                                               placeholder="{% trans "Enter last name" %}" data-i18n-placeholder="REGISTER_ENTER_LASTNAME" required
                                                value="{{ form.last_name.value|default:'' }}">
                                     </div>
                                 </div>
@@ -95,18 +101,19 @@
                             <!-- Role Selection -->
                             <div class="mb-4">
                                 <label for="id_role" class="form-label fw-semibold">
-                                    <i class="fas fa-user-tag me-1 text-primary"></i>Role
+                                    <i class="fas fa-user-tag me-1 text-primary"></i>
+                                    <span data-i18n="ROLE_LABEL">{% trans "Role" %}</span>
                                 </label>
                                 <select name="role" id="id_role" class="form-control" required>
-                                    <option value="">Select Role</option>
-                                    <option value="student" {% if form.role.value == 'student' %}selected{% endif %}>Student</option>
-                                    <option value="teacher" {% if form.role.value == 'teacher' %}selected{% endif %}>Teacher</option>
-                                    <option value="parent" {% if form.role.value == 'parent' %}selected{% endif %}>Parent</option>
-                                    <option value="admin" {% if form.role.value == 'admin' %}selected{% endif %}>Administrator</option>
-                                    <option value="registrar" {% if form.role.value == 'registrar' %}selected{% endif %}>Registrar</option>
-                                    <option value="finance" {% if form.role.value == 'finance' %}selected{% endif %}>Finance Officer</option>
+                                    <option value="" data-i18n="SELECT_ROLE">{% trans "Select Role" %}</option>
+                                    <option value="student" {% if form.role.value == 'student' %}selected{% endif %} data-i18n-value="ROLE_STUDENT">{% trans "Student" %}</option>
+                                    <option value="teacher" {% if form.role.value == 'teacher' %}selected{% endif %} data-i18n-value="ROLE_TEACHER">{% trans "Teacher" %}</option>
+                                    <option value="parent" {% if form.role.value == 'parent' %}selected{% endif %} data-i18n-value="ROLE_PARENT">{% trans "Parent" %}</option>
+                                    <option value="admin" {% if form.role.value == 'admin' %}selected{% endif %} data-i18n-value="ROLE_ADMIN">{% trans "Administrator" %}</option>
+                                    <option value="registrar" {% if form.role.value == 'registrar' %}selected{% endif %} data-i18n-value="ROLE_REGISTRAR">{% trans "Registrar" %}</option>
+                                    <option value="finance" {% if form.role.value == 'finance' %}selected{% endif %} data-i18n-value="ROLE_FINANCE">{% trans "Finance Officer" %}</option>
                                 </select>
-                                <small class="form-text text-muted">Select your role in the system</small>
+                                <small class="form-text text-muted" data-i18n="ROLE_HINT">{% trans "Select your role in the system" %}</small>
                             </div>
                             
                             <!-- Student-specific fields -->
@@ -114,26 +121,27 @@
                                 <div class="card bg-light">
                                     <div class="card-body">
                                         <h6 class="card-title text-primary">
-                                            <i class="fas fa-graduation-cap me-1"></i>Student Information
+                                            <i class="fas fa-graduation-cap me-1"></i>
+                                            <span data-i18n="STUDENT_INFO_TITLE">{% trans "Student Information" %}</span>
                                         </h6>
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label for="id_grade_level" class="form-label fw-semibold">
-                                                        Grade Level *
+                                                        <span data-i18n="GRADE_LEVEL_LABEL">{% trans "Grade Level" %}</span> *
                                                     </label>
                                                     <select name="grade_level" id="id_grade_level" class="form-control">
-                                                        <option value="">Select Grade Level</option>
-                                                        <option value="1">Grade 1</option>
-                                                        <option value="2">Grade 2</option>
-                                                        <option value="3">Grade 3</option>
-                                                        <option value="4">Grade 4</option>
-                                                        <option value="5">Grade 5</option>
-                                                        <option value="6">Grade 6</option>
-                                                        <option value="7">Grade 7</option>
-                                                        <option value="8">Grade 8</option>
+                                                        <option value="" data-i18n="SELECT_GRADE">{% trans "Select Grade Level" %}</option>
+                                                        <option value="1">{% trans "Grade 1" %}</option>
+                                                        <option value="2">{% trans "Grade 2" %}</option>
+                                                        <option value="3">{% trans "Grade 3" %}</option>
+                                                        <option value="4">{% trans "Grade 4" %}</option>
+                                                        <option value="5">{% trans "Grade 5" %}</option>
+                                                        <option value="6">{% trans "Grade 6" %}</option>
+                                                        <option value="7">{% trans "Grade 7" %}</option>
+                                                        <option value="8">{% trans "Grade 8" %}</option>
                                                     </select>
-                                                    <small class="form-text text-muted">Select your grade level (1-8)</small>
+                                                    <small class="form-text text-muted" data-i18n="GRADE_HINT">{% trans "Select your grade level (1-8)" %}</small>
                                                     {% if form.grade_level.errors %}
                                                         <div class="text-danger small mt-1">{{ form.grade_level.errors }}</div>
                                                     {% endif %}
@@ -177,9 +185,10 @@
                             <div id="teacher-fields" class="role-specific-fields mb-3" style="display: none;">
                                 <div class="card bg-light">
                                     <div class="card-body">
-                                        <h6 class="card-title text-primary">
-                                            <i class="fas fa-chalkboard-teacher me-1"></i>Teacher Information
-                                        </h6>
+                                                <h6 class="card-title text-primary">
+                                                    <i class="fas fa-chalkboard-teacher me-1"></i>
+                                                    <span data-i18n="TEACHER_INFO_TITLE">{% trans "Teacher Information" %}</span>
+                                                </h6>
                                         <div class="mb-3">
                                             <label for="id_department" class="form-label fw-semibold">Department *</label>
                                             <input type="text" name="department" id="id_department" class="form-control" 
@@ -201,9 +210,10 @@
                             <div id="parent-fields" class="role-specific-fields mb-3" style="display: none;">
                                 <div class="card bg-light">
                                     <div class="card-body">
-                                        <h6 class="card-title text-primary">
-                                            <i class="fas fa-users me-1"></i>Parent Information
-                                        </h6>
+                                                <h6 class="card-title text-primary">
+                                                    <i class="fas fa-users me-1"></i>
+                                                    <span data-i18n="PARENT_INFO_TITLE">{% trans "Parent Information" %}</span>
+                                                </h6>
                                         <div class="mb-3">
                                             <label for="id_occupation" class="form-label fw-semibold">Occupation *</label>
                                             <input type="text" name="occupation" id="id_occupation" class="form-control" 
@@ -238,17 +248,19 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_phone" class="form-label fw-semibold">
-                                            <i class="fas fa-phone me-1 text-primary"></i>Phone
+                                            <i class="fas fa-phone me-1 text-primary"></i>
+                                            <span data-i18n="PHONE_LABEL">{% trans "Phone" %}</span>
                                         </label>
                                         <input type="text" name="phone" id="id_phone" class="form-control" 
-                                               placeholder="Enter phone number"
+                                               placeholder="{% trans "Enter phone number" %}" data-i18n-placeholder="REGISTER_ENTER_PHONE"
                                                value="{{ form.phone.value|default:'' }}">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_date_of_birth" class="form-label fw-semibold">
-                                            <i class="fas fa-calendar me-1 text-primary"></i>Date of Birth
+                                            <i class="fas fa-calendar me-1 text-primary"></i>
+                                            <span data-i18n="DOB_LABEL">{% trans "Date of Birth" %}</span>
                                         </label>
                                         <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control"
                                                value="{{ form.date_of_birth.value|default:'' }}">
@@ -261,34 +273,36 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_password1" class="form-label fw-semibold">
-                                            <i class="fas fa-key me-1 text-primary"></i>Password
+                                            <i class="fas fa-key me-1 text-primary"></i>
+                                            <span data-i18n="PASSWORD_LABEL">{% trans "Password" %}</span>
                                         </label>
                                         <input type="password" name="password1" id="id_password1" class="form-control" 
-                                               placeholder="Enter password" required>
+                                               placeholder="{% trans "Enter password" %}" data-i18n-placeholder="REGISTER_ENTER_PASSWORD" required>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_password2" class="form-label fw-semibold">
-                                            <i class="fas fa-key me-1 text-primary"></i>Confirm Password
+                                            <i class="fas fa-key me-1 text-primary"></i>
+                                            <span data-i18n="CONFIRM_PASSWORD_LABEL">{% trans "Confirm Password" %}</span>
                                         </label>
                                         <input type="password" name="password2" id="id_password2" class="form-control" 
-                                               placeholder="Confirm password" required>
+                                               placeholder="{% trans "Confirm password" %}" data-i18n-placeholder="REGISTER_CONFIRM_PASSWORD" required>
                                     </div>
                                 </div>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-semibold">
-                                <i class="fas fa-user-plus me-2"></i> Create Account
+                            <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-semibold" data-i18n="CREATE_ACCOUNT_BTN">
+                                <i class="fas fa-user-plus me-2"></i> {% trans "Create Account" %}
                             </button>
                         </form>
                         
                         <div class="mt-4 text-center">
-                            <p class="mb-3">Already have an account? 
-                                <a href="{% url 'login' %}" class="text-decoration-none fw-semibold">Login here</a>
+                            <p class="mb-3" data-i18n="ALREADY_ACCOUNT">{% trans "Already have an account?" %}
+                                <a href="{% url 'login' %}" class="text-decoration-none fw-semibold" data-i18n="LOGIN_HERE">{% trans "Login here" %}</a>
                             </p>
-                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Home
+                            <a href="{% url 'home' %}" class="btn btn-outline-secondary" data-i18n="BACK_TO_HOME">
+                                <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Home" %}
                             </a>
                         </div>
                     </div>

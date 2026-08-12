@@ -99,6 +99,21 @@
                             </div>
                             {% endif %}
 
+                                {% if user.role == 'admin' and admin_profile %}
+                                <div class="card mb-4">
+                                    <div class="card-header bg-dark text-white">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-user-shield me-2"></i>Administrator Information
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Department:</strong> {{ admin_profile.department|default:"Administration" }}</p>
+                                        <p><strong>Admin Username:</strong> {{ user.username }}</p>
+                                        <p class="text-muted small">Administrators have access to system management and settings.</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+
                             {% if user.role == 'parent' and parent_profile %}
                             <div class="card mb-4">
                                 <div class="card-header bg-info text-white">
@@ -135,7 +150,7 @@
                                 <div class="card-body text-center">
                                     {% if user.profile_picture %}
                                         <img src="{{ user.profile_picture.url }}" alt="Profile Picture" 
-                                             class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                             class="rounded-circle mb-3 img-fluid profile-pic" />
                                     {% else %}
                                         <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                                              style="width: 150px; height: 150px;">
@@ -199,5 +214,7 @@
 .badge {
     font-size: 0.75rem;
 }
+/* Profile image sizing */
+.profile-pic { max-width: 150px; height: auto; object-fit: cover; }
 </style>
 {% endblock %}

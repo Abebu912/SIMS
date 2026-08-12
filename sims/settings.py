@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+import socket
+import logging
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,7 +14,8 @@ SECRET_KEY = 'your-secret-key-here'
 DEBUG = True
 
 # Added local LAN IP so other devices can access the dev server.
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '172.16.23.219']
+# Allow localtunnel / loca.lt subdomains for temporary public tunnels.
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '172.16.23.219', '.loca.lt']
 
 # Application definition
 INSTALLED_APPS = [
@@ -44,9 +47,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Prevent browser caching of authenticated pages so back-button cannot
+    # reveal a previous user's dashboard after logout.
+    'sims.middleware.NoCacheMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -162,13 +169,52 @@ except Exception:
 # loader below will configure Django to use the SMTP backend so real emails
 # can be delivered.
 import os
-EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+# Prefer console backend when developing locally unless an explicit
+# `EMAIL_BACKEND` environment variable is provided. This avoids attempting
+# to connect to an SMTP server (which can time out) during password-reset
+# or other email actions in DEBUG mode.
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND')
+if not EMAIL_BACKEND:
+    if DEBUG:
+        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    else:
+        EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 0) or 0)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() in ('1', 'true', 'yes')
 EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes')
+
+# Small helper to detect if SMTP server is reachable from this host.
+def _smtp_reachable(hostname, port, timeout=5):
+    if not hostname or not port:
+        return False
+    try:
+        s = socket.create_connection((hostname, int(port)), timeout)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+# If the configured backend is SMTP but the host/port are not reachable,
+# automatically fall back to the console backend during development to
+# avoid repeated TimeoutErrors while running locally. In production
+# environments (DEBUG=False) we do not silently switch backends.
+try:
+    if 'smtp' in (EMAIL_BACKEND or '').lower():
+        if not _smtp_reachable(EMAIL_HOST, EMAIL_PORT, timeout=5):
+            if DEBUG:
+                logging.getLogger(__name__).warning(
+                    f"SMTP {EMAIL_HOST}:{EMAIL_PORT} is unreachable; falling back to console backend for local development.")
+                EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+            else:
+                logging.getLogger(__name__).warning(
+                    f"SMTP {EMAIL_HOST}:{EMAIL_PORT} appears unreachable. Leaving EMAIL_BACKEND as configured; check network/firewall.")
+except Exception:
+    # Don't block startup on unexpected errors in the check
+    pass
 
 try:
     # If site_settings.json contains email configuration, prefer it
@@ -207,9 +253,14 @@ try:
             if email_cfg.get('use_ssl') is not None:
                 EMAIL_USE_SSL = bool(email_cfg.get('use_ssl'))
 
-        # If we have host and port configured, and no explicit backend, use SMTP
-        if EMAIL_HOST and EMAIL_PORT and EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
-            EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+        # If site settings contain an explicit backend, prefer it. Otherwise
+        # only switch to SMTP automatically when not in DEBUG mode and both
+        # host and port are provided.
+        if email_cfg.get('backend'):
+            EMAIL_BACKEND = email_cfg.get('backend')
+        else:
+            if not DEBUG and EMAIL_HOST and EMAIL_PORT and EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
+                EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 except Exception:
     pass
 # Toggle automatic approval of child-link requests when the submitted identifier matches a student
@@ -222,6 +273,16 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
+
+# Internationalization: enable multiple languages
+LANGUAGES = [
+    ('en', 'English'),
+    ('am', 'Amharic'),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 # JWT Settings
 SIMPLE_JWT = {

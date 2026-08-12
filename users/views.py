@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Q, Count
 from collections import defaultdict
@@ -10,13 +11,18 @@ from django.http import HttpResponse, JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import User, StudentProfile, TeacherProfile, ParentProfile, StudentParent
+from .models import User, StudentProfile, TeacherProfile, ParentProfile, StudentParent, AdminProfile, RegistrarProfile, FinanceProfile
 from subjects.models import Subject, Enrollment
+from subjects.models import Grade as AssignmentGrade
+from django.utils import timezone
+from decimal import Decimal
 from payments.models import Payment
 from notifications.models import Announcement, Notification
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView
+import socket
+import smtplib
 from django.conf import settings
 
 # Import forms
@@ -35,11 +41,44 @@ class CustomPasswordResetView(PasswordResetView):
     
     def form_valid(self, form):
         messages.info(self.request, "If an account with that email exists, reset instructions have been sent.")
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except (socket.timeout, socket.error, TimeoutError, smtplib.SMTPException, OSError) as e:
+            # SMTP is unreachable (common in local dev). Attempt to fall back
+            # to the console email backend so the reset message is still visible
+            # in the runserver output for debugging.
+            print('Password reset email send failed:', repr(e))
+            try:
+                # Temporarily override the EMAIL_BACKEND to the console backend
+                # so that the form.save() call prints the email to the runserver
+                # console instead of attempting an SMTP connection.
+                previous_backend = getattr(settings, 'EMAIL_BACKEND', None)
+                settings.EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+                try:
+                    form.save(request=self.request, from_email=settings.DEFAULT_FROM_EMAIL,
+                              subject_template_name=self.subject_template_name,
+                              email_template_name=self.email_template_name,
+                              html_email_template_name=self.html_email_template_name)
+                    messages.warning(self.request, 'Email server unreachable; password reset email printed to server console.')
+                finally:
+                    # restore previous backend
+                    if previous_backend is not None:
+                        settings.EMAIL_BACKEND = previous_backend
+                    else:
+                        # remove attribute if it wasn't set before
+                        try:
+                            delattr(settings, 'EMAIL_BACKEND')
+                        except Exception:
+                            pass
+            except Exception as e2:
+                print('Fallback to console email backend also failed:', repr(e2))
+                messages.warning(self.request, 'Unable to send reset email (email server unreachable).')
+            return redirect('password_reset_done')
 
 class CustomPasswordResetDoneView(PasswordResetDoneView):
     template_name = 'registration/password_reset_done.html'
 
+@staff_member_required
 def register_view(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
@@ -106,10 +145,21 @@ def user_login(request):
     return render(request, 'registration/login.html', {'form': form})
 
 def user_logout(request):
+    try:
+        # Ensure the session is fully cleared
+        request.session.flush()
+    except Exception:
+        pass
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
-    return redirect('login')
+    # Redirect to login with explicit no-cache headers on the response
+    response = redirect('login')
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
+@staff_member_required
 def register(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
@@ -784,8 +834,90 @@ def view_transcripts(request):
 
 @login_required
 def pay_fees(request):
+    from payments.models import FeeStructure, Payment
+    import uuid
+    if request.user.role != 'student':
+        messages.error(request, "You don't have permission to access the fees page.")
+        return redirect('dashboard')
+
+    try:
+        student_profile = request.user.studentprofile
+    except StudentProfile.DoesNotExist:
+        messages.error(request, "Student profile not found. Please contact administration.")
+        return redirect('dashboard')
+
+    fee_structures = FeeStructure.objects.filter(is_active=True)
+    payments = Payment.objects.filter(student=request.user).order_by('-payment_date')
+
+    # Handle form submissions
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'start_payment':
+            fee_id = request.POST.get('fee_structure_id')
+            if not fee_id:
+                messages.error(request, 'No fee selected.')
+                return redirect('pay_fees')
+
+            try:
+                fee = FeeStructure.objects.get(pk=fee_id)
+            except FeeStructure.DoesNotExist:
+                messages.error(request, 'Selected fee not found.')
+                return redirect('pay_fees')
+
+            from decimal import Decimal
+            from django.db import transaction
+
+            amount = Decimal(str(fee.amount))
+
+            # Check balance and perform atomic update
+            with transaction.atomic():
+                student_profile.refresh_from_db()
+                if (student_profile.balance or Decimal('0.00')) < amount:
+                    messages.error(request, 'Insufficient balance to pay. Unable to process payment.')
+                    return redirect('pay_fees')
+
+                # Process payment
+                payment = Payment.objects.create(
+                    student=request.user,
+                    fee_structure=fee,
+                    amount_paid=amount,
+                    payment_method='balance',
+                    transaction_id=str(uuid.uuid4()),
+                    status='completed'
+                )
+
+                # Deduct balance
+                student_profile.balance = (student_profile.balance or Decimal('0.00')) - amount
+                student_profile.save()
+
+                # Credit school's finance account (first active finance officer)
+                try:
+                    finance_profile = FinanceProfile.objects.select_for_update().filter(user__role='finance', user__is_active=True).first()
+                    if finance_profile:
+                        finance_profile.balance = (finance_profile.balance or Decimal('0.00')) + amount
+                        finance_profile.save()
+                except Exception:
+                    # Do not block user payment on finance account update failure; log if desired
+                    pass
+
+            messages.success(request, f'Payment successful. New balance: {student_profile.balance}')
+            return redirect('pay_fees')
+
+        elif action == 'clear_payment':
+            payment_id = request.POST.get('payment_id')
+            try:
+                p = Payment.objects.get(pk=payment_id, student=request.user)
+                p.is_cleared = True
+                p.save()
+                messages.success(request, 'Payment cleared from view.')
+            except Payment.DoesNotExist:
+                messages.error(request, 'Payment not found.')
+            return redirect('pay_fees')
+
     context = {
-        'outstanding_fees': 0,
+        'fee_structures': fee_structures,
+        'payments': payments,
+        'student_profile': student_profile,
     }
     return render(request, 'students/pay_fees.html', context)
 
@@ -931,11 +1063,26 @@ def profile(request):
             context['linked_students'] = StudentParent.objects.filter(parent=user).select_related('student', 'student__studentprofile')
         except ParentProfile.DoesNotExist:
             pass
+    elif user.role == 'admin':
+        try:
+            context['admin_profile'] = user.adminprofile
+        except AdminProfile.DoesNotExist:
+            pass
+    elif user.role == 'registrar':
+        try:
+            context['registrar_profile'] = user.registrarprofile
+        except RegistrarProfile.DoesNotExist:
+            pass
+    elif user.role == 'finance':
+        try:
+            context['finance_profile'] = user.financeprofile
+        except FinanceProfile.DoesNotExist:
+            pass
     
     return render(request, 'users/profile.html', context)
 @login_required
 def admin_panel(request):
-    if not request.user.role == 'admin' and not request.user.is_superuser:
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access the admin panel.")
         return redirect('dashboard')
     
@@ -954,11 +1101,11 @@ def admin_panel(request):
 
 @login_required
 def manage_users(request):
-    if not request.user.role == 'admin' and not request.user.is_superuser:
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
-    users = User.objects.all().select_related('studentprofile', 'teacherprofile')
+    users = User.objects.all().select_related('studentprofile', 'teacherprofile', 'parentprofile', 'registrarprofile', 'financeprofile', 'adminprofile')
     
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
@@ -987,7 +1134,8 @@ def manage_users(request):
 
 @login_required
 def add_user(request):
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+    # Allow application-level administrators (role == 'admin') or Django superusers.
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -1007,7 +1155,7 @@ def add_user(request):
 
 @login_required
 def system_settings(request):
-    if not request.user.role == 'admin' and not request.user.is_superuser:
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -1016,7 +1164,7 @@ def system_settings(request):
 
 @login_required
 def generate_reports(request):
-    if not request.user.role == 'admin' and not request.user.is_superuser:
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -1031,7 +1179,7 @@ def generate_reports(request):
 
 @login_required
 def post_announcement(request):
-    if not request.user.role == 'admin' and not request.user.is_superuser:
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -1262,6 +1410,344 @@ def approve_registrations(request):
         'stats': stats,
     }
     return render(request, 'registrar/approve_registrations.html', context)
+
+
+@login_required
+@user_passes_test(is_registrar)
+def registrar_pass_list(request):
+    """List students by academic year and grade for registrar to review pass eligibility."""
+    academic_year = request.GET.get('academic_year')
+    grade_level = request.GET.get('grade_level')
+
+    # sensible defaults
+    if not academic_year:
+        academic_year = timezone.now().year
+        academic_year = f"{academic_year}-{academic_year+1}"
+    try:
+        grade_level = int(grade_level) if grade_level else 1
+    except ValueError:
+        grade_level = 1
+
+    students = User.objects.filter(role='student', studentprofile__grade_level=grade_level, studentprofile__academic_year=academic_year).select_related('studentprofile')
+
+    results = []
+    for student in students:
+        enrollments = Enrollment.objects.filter(student=student, academic_year=academic_year)
+        assigned_count = enrollments.count()
+
+        # Check each enrollment has at least one grade record
+        has_all_results = True if assigned_count > 0 else False
+        for enr in enrollments:
+            if not AssignmentGrade.objects.filter(enrollment=enr).exists():
+                has_all_results = False
+                break
+
+        # Compute semester averages
+        sem_avgs = {}
+        for sem in ['first', 'second']:
+            sem_enrs = enrollments.filter(semester=sem)
+            percentages = []
+            for enr in sem_enrs:
+                for g in AssignmentGrade.objects.filter(enrollment=enr):
+                    try:
+                        pct = g.percentage()
+                        percentages.append(float(pct))
+                    except Exception:
+                        continue
+            if percentages:
+                sem_avgs[sem] = sum(percentages) / len(percentages)
+            else:
+                sem_avgs[sem] = None
+
+        avg_first = sem_avgs.get('first')
+        avg_second = sem_avgs.get('second')
+        overall_avg = None
+        if avg_first is not None and avg_second is not None:
+            overall_avg = (avg_first + avg_second) / 2.0
+
+        # Determine eligibility and reason
+        eligible = False
+        reason = None
+        if assigned_count == 0:
+            reason = 'No assigned subjects for this academic year'
+        elif not has_all_results:
+            reason = 'Missing results for one or more assigned subjects'
+        elif overall_avg is None:
+            reason = 'Insufficient grades to compute averages'
+        elif overall_avg < 50.0:
+            reason = 'Overall average below 50%'
+        else:
+            eligible = True
+            reason = 'Meets pass criteria'
+        results.append({
+            'student': student,
+            'assigned_count': assigned_count,
+            'has_all_results': has_all_results,
+            'avg_first': avg_first,
+            'avg_second': avg_second,
+            'overall_avg': overall_avg,
+            'eligible': eligible,
+            'reason': reason,
+        })
+
+    context = {
+        'page_title': 'Pass Students',
+        'academic_year': academic_year,
+        'grade_level': grade_level,
+        'results': results,
+        # provide a list of selectable academic years and grade levels for the template
+        'available_years': [f"{y}-{y+1}" for y in range(2020, timezone.now().year + 1)],
+        'grade_levels': list(range(1, 9)),
+    }
+    return render(request, 'registrar/pass_students.html', context)
+
+
+@login_required
+@user_passes_test(is_registrar)
+def registrar_pass_student(request, student_id):
+    """Endpoint to pass a single student to the next grade if eligible."""
+    student = get_object_or_404(User, pk=student_id, role='student')
+    academic_year = request.POST.get('academic_year') or student.studentprofile.academic_year
+    grade_level = student.studentprofile.grade_level
+
+    # Recompute eligibility
+    enrollments = Enrollment.objects.filter(student=student, academic_year=academic_year)
+    if not enrollments.exists():
+        messages.error(request, 'Student has no assigned subjects for the selected academic year.')
+        return redirect('registrar_pass_list')
+
+    # Ensure all enrollments have at least one grade
+    for enr in enrollments:
+        if not AssignmentGrade.objects.filter(enrollment=enr).exists():
+            messages.error(request, 'Student does not have results for all assigned subjects.')
+            return redirect('registrar_pass_list')
+
+    # Calculate semester averages
+    sem_avgs = {}
+    for sem in ['first', 'second']:
+        sem_enrs = enrollments.filter(semester=sem)
+        percentages = []
+        for enr in sem_enrs:
+            for g in AssignmentGrade.objects.filter(enrollment=enr):
+                try:
+                    percentages.append(float(g.percentage()))
+                except Exception:
+                    continue
+        if percentages:
+            sem_avgs[sem] = sum(percentages) / len(percentages)
+        else:
+            sem_avgs[sem] = None
+
+    if sem_avgs.get('first') is None or sem_avgs.get('second') is None:
+        messages.error(request, 'Student must have grades in both first and second semesters to be eligible.')
+        return redirect('registrar_pass_list')
+
+    overall_avg = (sem_avgs['first'] + sem_avgs['second']) / 2.0
+    if overall_avg < 50.0:
+        messages.error(request, 'Student average is below 50%; cannot pass to next grade.')
+        return redirect('registrar_pass_list')
+
+    # All checks passed -> promote student
+    if student.studentprofile.grade_level >= 8:
+        messages.info(request, 'Student is already in the highest grade level.')
+        return redirect('registrar_pass_list')
+
+    student.studentprofile.grade_level = student.studentprofile.grade_level + 1
+    student.studentprofile.save()
+    messages.success(request, f"{student.get_full_name() or student.username} has been promoted to Grade {student.studentprofile.grade_level}.")
+    return redirect('registrar_pass_list')
+
+
+@login_required
+@user_passes_test(is_registrar)
+def registrar_fail_student(request, student_id):
+    """Mark a student as failed for the academic year (they will repeat the grade)."""
+    student = get_object_or_404(User, pk=student_id, role='student')
+    academic_year = request.POST.get('academic_year') or student.studentprofile.academic_year
+
+    # Recompute simple eligibility check to ensure student actually failed
+    enrollments = Enrollment.objects.filter(student=student, academic_year=academic_year)
+    if not enrollments.exists():
+        messages.error(request, 'Student has no assigned subjects for the selected academic year.')
+        return redirect('registrar_pass_list')
+
+    # Ensure both semester averages exist
+    sem_avgs = {}
+    for sem in ['first', 'second']:
+        sem_enrs = enrollments.filter(semester=sem)
+        percentages = []
+        for enr in sem_enrs:
+            for g in AssignmentGrade.objects.filter(enrollment=enr):
+                try:
+                    percentages.append(float(g.percentage()))
+                except Exception:
+                    continue
+        if percentages:
+            sem_avgs[sem] = sum(percentages) / len(percentages)
+        else:
+            sem_avgs[sem] = None
+
+    if sem_avgs.get('first') is None or sem_avgs.get('second') is None:
+        messages.error(request, 'Student must have grades in both semesters before marking as failed.')
+        return redirect('registrar_pass_list')
+
+    overall_avg = (sem_avgs['first'] + sem_avgs['second']) / 2.0
+    if overall_avg >= 50.0:
+        messages.error(request, 'Student average is >= 50%; cannot mark as failed.')
+        return redirect('registrar_pass_list')
+
+    # Mark student as repeating
+    sp = student.studentprofile
+    sp.is_repeating = True
+    sp.repeated_years = (sp.repeated_years or 0) + 1
+    sp.save()
+
+    messages.success(request, f"{student.get_full_name() or student.username} has been marked as repeating Grade {sp.grade_level}.")
+    return redirect('registrar_pass_list')
+
+
+@login_required
+@user_passes_test(is_registrar)
+def registrar_bulk_fail(request):
+    """Fail all eligible students for the selected academic year and grade."""
+    academic_year = request.POST.get('academic_year')
+    grade_level = request.POST.get('grade_level')
+    try:
+        grade_level = int(grade_level) if grade_level else 1
+    except Exception:
+        grade_level = 1
+
+    if not academic_year:
+        academic_year = timezone.now().year
+        academic_year = f"{academic_year}-{academic_year+1}"
+
+    students = User.objects.filter(role='student', studentprofile__grade_level=grade_level, studentprofile__academic_year=academic_year)
+    failed_count = 0
+    from users.models import StudentStatusLog
+    from decimal import Decimal
+
+    for student in students:
+        enrollments = Enrollment.objects.filter(student=student, academic_year=academic_year)
+        if not enrollments.exists():
+            continue
+
+        # ensure all enrollments have grades
+        all_results = True
+        sem_avgs = {}
+        for sem in ['first', 'second']:
+            sem_enrs = enrollments.filter(semester=sem)
+            percentages = []
+            for enr in sem_enrs:
+                for g in AssignmentGrade.objects.filter(enrollment=enr):
+                    try:
+                        percentages.append(float(g.percentage()))
+                    except Exception:
+                        continue
+            if percentages:
+                sem_avgs[sem] = sum(percentages) / len(percentages)
+            else:
+                sem_avgs[sem] = None
+            # if any enrollment in semester lacks grades, mark not all results
+            if sem_enrs.exists() and not AssignmentGrade.objects.filter(enrollment__in=sem_enrs).exists():
+                all_results = False
+
+        if sem_avgs.get('first') is None or sem_avgs.get('second') is None:
+            continue
+
+        overall_avg = (sem_avgs['first'] + sem_avgs['second']) / 2.0
+        if overall_avg < 50.0 and all_results:
+            sp = student.studentprofile
+            sp.is_repeating = True
+            sp.repeated_years = (sp.repeated_years or 0) + 1
+            sp.save()
+            # log action
+            try:
+                StudentStatusLog.objects.create(
+                    student=student,
+                    action='failed',
+                    performed_by=request.user,
+                    academic_year=academic_year,
+                    previous_grade=grade_level,
+                    new_grade=grade_level,
+                    note='Bulk fail via registrar bulk action'
+                )
+            except Exception:
+                pass
+            failed_count += 1
+
+    messages.success(request, f'Bulk fail completed. {failed_count} students marked as repeating.')
+    return redirect('registrar_pass_list')
+
+
+@login_required
+@user_passes_test(is_registrar)
+def registrar_bulk_pass(request):
+    """Promote all eligible students for the selected academic year and grade."""
+    academic_year = request.POST.get('academic_year')
+    grade_level = request.POST.get('grade_level')
+    try:
+        grade_level = int(grade_level) if grade_level else 1
+    except Exception:
+        grade_level = 1
+
+    if not academic_year:
+        academic_year = timezone.now().year
+        academic_year = f"{academic_year}-{academic_year+1}"
+
+    students = User.objects.filter(role='student', studentprofile__grade_level=grade_level, studentprofile__academic_year=academic_year)
+    passed_count = 0
+    from users.models import StudentStatusLog
+
+    for student in students:
+        enrollments = Enrollment.objects.filter(student=student, academic_year=academic_year)
+        if not enrollments.exists():
+            continue
+
+        # ensure all enrollments have grades
+        all_results = True
+        sem_avgs = {}
+        for sem in ['first', 'second']:
+            sem_enrs = enrollments.filter(semester=sem)
+            percentages = []
+            for enr in sem_enrs:
+                for g in AssignmentGrade.objects.filter(enrollment=enr):
+                    try:
+                        percentages.append(float(g.percentage()))
+                    except Exception:
+                        continue
+            if percentages:
+                sem_avgs[sem] = sum(percentages) / len(percentages)
+            else:
+                sem_avgs[sem] = None
+            if sem_enrs.exists() and not AssignmentGrade.objects.filter(enrollment__in=sem_enrs).exists():
+                all_results = False
+
+        if sem_avgs.get('first') is None or sem_avgs.get('second') is None:
+            continue
+
+        overall_avg = (sem_avgs['first'] + sem_avgs['second']) / 2.0
+        if overall_avg >= 50.0 and all_results:
+            sp = student.studentprofile
+            # promote unless already at highest grade
+            if sp.grade_level < 8:
+                sp.grade_level = sp.grade_level + 1
+                sp.save()
+                try:
+                    StudentStatusLog.objects.create(
+                        student=student,
+                        action='promoted',
+                        performed_by=request.user,
+                        academic_year=academic_year,
+                        previous_grade=grade_level,
+                        new_grade=sp.grade_level,
+                        note='Bulk pass via registrar bulk action'
+                    )
+                except Exception:
+                    pass
+                passed_count += 1
+
+    messages.success(request, f'Bulk pass completed. {passed_count} students promoted.')
+    return redirect('registrar_pass_list')
 
 @login_required
 @user_passes_test(is_registrar)

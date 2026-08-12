@@ -153,12 +153,47 @@
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="filter_grade_level" class="form-label">Grade Level</label>
+                                        <select id="filter_grade_level" class="form-control">
+                                            <option value="">All Grades</option>
+                                            {% for g, label in grade_choices %}
+                                            <option value="{{ g }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="filter_academic_year" class="form-label">Academic Year</label>
+                                        <select id="filter_academic_year" class="form-control">
+                                            <option value="">All Years</option>
+                                            {% for ay in academic_years %}
+                                            <option value="{{ ay }}">{{ ay }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="filter_semester" class="form-label">Semester</label>
+                                        <select id="filter_semester" class="form-control">
+                                            <option value="">All Semesters</option>
+                                            {% for sem in semesters %}
+                                            <option value="{{ sem }}">{{ sem|capfirst }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
                                     <div class="mb-3">
                                         <label for="report_date_from" class="form-label">Date From</label>
                                         <input type="date" class="form-control" id="report_date_from">
                                     </div>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="report_date_to" class="form-label">Date To</label>
@@ -272,12 +307,18 @@ function generateReport(reportType) {
     const dateFrom = document.getElementById('report_date_from').value;
     const dateTo = document.getElementById('report_date_to').value;
     const format = document.getElementById('report_format').value;
+    const grade = document.getElementById('filter_grade_level') ? document.getElementById('filter_grade_level').value : '';
+    const ay = document.getElementById('filter_academic_year') ? document.getElementById('filter_academic_year').value : '';
+    const sem = document.getElementById('filter_semester') ? document.getElementById('filter_semester').value : '';
     
     // Build download URL and navigate to it to trigger server-side generation/download
     const downloadUrl = window.SIMS_DOWNLOAD_URL || '/generate-reports/download/';
     const params = new URLSearchParams({ type: reportType, format: format });
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo) params.set('date_to', dateTo);
+    if (grade) params.set('grade_level', grade);
+    if (ay) params.set('academic_year', ay);
+    if (sem) params.set('semester', sem);
     // navigate to the download endpoint which will return CSV/PDF
     window.location.href = downloadUrl + '?' + params.toString();
 }
@@ -288,10 +329,16 @@ function generateAllReports() {
         const format = document.getElementById('report_format').value || 'pdf';
         const dateFromVal = document.getElementById('report_date_from').value;
         const dateToVal = document.getElementById('report_date_to').value;
+        const grade = document.getElementById('filter_grade_level') ? document.getElementById('filter_grade_level').value : '';
+        const ay = document.getElementById('filter_academic_year') ? document.getElementById('filter_academic_year').value : '';
+        const sem = document.getElementById('filter_semester') ? document.getElementById('filter_semester').value : '';
         const downloadUrl = window.SIMS_DOWNLOAD_URL || '/generate-reports/download/';
         const p = new URLSearchParams({ type: 'all_reports', format: format });
         if (dateFromVal) p.set('date_from', dateFromVal);
         if (dateToVal) p.set('date_to', dateToVal);
+        if (grade) p.set('grade_level', grade);
+        if (ay) p.set('academic_year', ay);
+        if (sem) p.set('semester', sem);
         window.open(downloadUrl + '?' + p.toString(), '_blank');
     }
 }
@@ -318,10 +365,16 @@ function addToRecentReports(reportType, format) {
 function downloadRecent(reportType, format) {
     const dateFrom = document.getElementById('report_date_from').value;
     const dateTo = document.getElementById('report_date_to').value;
+    const grade = document.getElementById('filter_grade_level') ? document.getElementById('filter_grade_level').value : '';
+    const ay = document.getElementById('filter_academic_year') ? document.getElementById('filter_academic_year').value : '';
+    const sem = document.getElementById('filter_semester') ? document.getElementById('filter_semester').value : '';
     const downloadUrl = window.SIMS_DOWNLOAD_URL || '/generate-reports/download/';
     const params = new URLSearchParams({ type: reportType, format: format });
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo) params.set('date_to', dateTo);
+    if (grade) params.set('grade_level', grade);
+    if (ay) params.set('academic_year', ay);
+    if (sem) params.set('semester', sem);
     window.location.href = downloadUrl + '?' + params.toString();
 }
 

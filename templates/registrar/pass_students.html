@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pass Students{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h3>Pass Students - Grade {{ grade_level }} ({{ academic_year }})</h3>
+  <form method="get" class="form-inline mb-3">
+    <div class="form-group mr-2">
+      <label for="academic_year" class="mr-1">Academic year</label>
+      <select id="academic_year" name="academic_year" class="form-control form-control-sm">
+        {% for ay in available_years %}
+          <option value="{{ ay }}" {% if ay == academic_year %}selected{% endif %}>{{ ay }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group mr-2">
+      <label for="grade_level" class="mr-1">Grade</label>
+      <select id="grade_level" name="grade_level" class="form-control form-control-sm">
+        {% for g in grade_levels %}
+          <option value="{{ g }}" {% if g == grade_level %}selected{% endif %}>Grade {{ g }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+  </form>
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Assigned Subjects</th>
+        <th>First Sem Avg</th>
+        <th>Second Sem Avg</th>
+        <th>Overall Avg</th>
+        <th>All Results?</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td colspan="7">
+        <form method="post" action="{% url 'registrar_bulk_fail' %}" class="d-inline mr-2">
+          {% csrf_token %}
+          <input type="hidden" name="academic_year" value="{{ academic_year }}" />
+          <input type="hidden" name="grade_level" value="{{ grade_level }}" />
+          <button class="btn btn-danger btn-sm" type="submit">Fail All Eligible Students</button>
+        </form>
+        <form method="post" action="{% url 'registrar_bulk_pass' %}" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="academic_year" value="{{ academic_year }}" />
+          <input type="hidden" name="grade_level" value="{{ grade_level }}" />
+          <button class="btn btn-success btn-sm" type="submit">Pass All Eligible Students</button>
+        </form>
+      </td>
+    </tr>
+    {% for r in results %}
+      <tr>
+        <td>{{ r.student.get_full_name|default:r.student.username }}</td>
+        <td>{{ r.assigned_count }}</td>
+        <td>{% if r.avg_first is not None %}{{ r.avg_first|floatformat:2 }}%{% else %}-{% endif %}</td>
+        <td>{% if r.avg_second is not None %}{{ r.avg_second|floatformat:2 }}%{% else %}-{% endif %}</td>
+        <td>{% if r.overall_avg is not None %}{{ r.overall_avg|floatformat:2 }}%{% else %}-{% endif %}</td>
+        <td>{% if r.has_all_results %}Yes{% else %}No{% endif %}</td>
+        <td>
+          {% if r.eligible %}
+            <form method="post" action="{% url 'registrar_pass_student' r.student.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="academic_year" value="{{ academic_year }}" />
+              <button class="btn btn-success btn-sm" type="submit">Pass</button>
+            </form>
+          {% else %}
+            {% if r.overall_avg is not None and r.overall_avg < 50.0 and r.has_all_results %}
+              <form method="post" action="{% url 'registrar_fail_student' r.student.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="academic_year" value="{{ academic_year }}" />
+                <button class="btn btn-danger btn-sm" type="submit">Fail</button>
+              </form>
+            {% else %}
+              <button class="btn btn-secondary btn-sm" disabled>Not eligible</button>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">No students found for this grade and academic year.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

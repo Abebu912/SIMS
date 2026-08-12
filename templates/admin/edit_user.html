@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit User - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <strong>Edit User</strong>
+          <span class="ms-2 text-light">{{ user_obj.username }}</span>
+        </div>
+        <div class="card-body">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              {{ form.username.label_tag }}
+              {{ form.username }}
+            </div>
+            <div class="mb-3">
+              {{ form.email.label_tag }}
+              {{ form.email }}
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">{{ form.first_name.label_tag }}{{ form.first_name }}</div>
+              <div class="col-md-6 mb-3">{{ form.last_name.label_tag }}{{ form.last_name }}</div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">{{ form.role.label_tag }}{{ form.role }}</div>
+              <div class="col-md-4 mb-3">{{ form.is_active.label_tag }} {{ form.is_active }}</div>
+              <div class="col-md-4 mb-3">{{ form.is_approved.label_tag }} {{ form.is_approved }}</div>
+            </div>
+
+            <hr>
+            <h6>Profile fields (optional)</h6>
+            <div class="mb-3">{{ form.phone.label_tag }}{{ form.phone }}</div>
+            <div class="mb-3">{{ form.date_of_birth.label_tag }}{{ form.date_of_birth }}</div>
+            <div class="row">
+              <div class="col-md-6 mb-3">{{ form.grade_level.label_tag }}{{ form.grade_level }}</div>
+              <div class="col-md-6 mb-3">{{ form.academic_year.label_tag }}{{ form.academic_year }}</div>
+            </div>
+            <div class="mb-3">{{ form.department.label_tag }}{{ form.department }}</div>
+            <div class="mb-3">{{ form.occupation.label_tag }}{{ form.occupation }}</div>
+            <div class="row">
+              <div class="col-md-6 mb-3">{{ form.office.label_tag }}{{ form.office }}</div>
+              <div class="col-md-6 mb-3">{{ form.finance_id.label_tag }}{{ form.finance_id }}</div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'manage_users' %}" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

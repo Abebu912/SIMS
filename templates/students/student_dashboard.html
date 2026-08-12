@@ -60,6 +60,12 @@
                                         <span class="badge bg-info">{{ user.studentprofile.academic_year }}</span>
                                         <span class="badge bg-warning">{{ user.studentprofile.get_current_semester_display }}</span>
                                     </div>
+                                    {% if user.studentprofile.is_repeating %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-danger">Repeating Grade {{ user.studentprofile.grade_level }}</span>
+                                        <small class="d-block text-muted">Repeats: {{ user.studentprofile.repeated_years }}</small>
+                                    </div>
+                                    {% endif %}
                                     <a href="{% url 'profile' %}" class="btn btn-outline-primary btn-sm">
                                         <i class="fas fa-edit me-1"></i>Edit Profile
                                     </a>
@@ -123,11 +129,12 @@
                                 <div class="card-body">
                                     <div class="row no-gutters align-items-center">
                                         <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Outstanding Fees</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ outstanding_fees|default:"0" }}</div>
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Account Balance (ETB)</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">ETB {{ user.studentprofile.balance|default:"5000.00" }}</div>
+                                            <small class="text-muted">Minimum starting balance: 5000.00 ETB</small>
                                         </div>
                                         <div class="col-auto">
-                                            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+                                            <i class="fas fa-wallet fa-2x text-gray-300"></i>
                                         </div>
                                     </div>
                                 </div>

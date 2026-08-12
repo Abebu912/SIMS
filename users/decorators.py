@@ -16,6 +16,22 @@ def role_required(*allowed_roles):
 def admin_required(view_func):
     return login_required(role_required('admin')(view_func))
 
+
+def admin_role_required(view_func):
+    """Require the user's `role` be exactly 'admin'. Do NOT allow superusers.
+
+    Some deployments want a distinct application-level Administrator account
+    (role == 'admin') and to deliberately *exclude* Django superusers from
+    performing application admin tasks. Use this decorator for that policy.
+    """
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated and getattr(request.user, 'role', None) == 'admin':
+            return view_func(request, *args, **kwargs)
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('dashboard')
+    return wrapper
+
 def teacher_required(view_func):
     return login_required(role_required('teacher')(view_func))
 

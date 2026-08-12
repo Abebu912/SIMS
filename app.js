@@ -66,7 +66,6 @@ function renderLoginPage() {
                         <input type="password" id="password" name="password" required>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;">Login</button>
-                    <p style="text-align: center; color: #6b7280;">Don't have an account? <a href="#" onclick="renderRegisterPage(); return false;" style="color: #2563eb; font-weight: 600;">Register</a></p>
                 </form>
             </div>
         </div>

@@ -17,6 +17,8 @@ class Payment(models.Model):
     fee_structure = models.ForeignKey(FeeStructure, on_delete=models.CASCADE)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True)
+    # Keep created_at so templates that expect it work reliably
+    created_at = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=50)
     transaction_id = models.CharField(max_length=100, unique=True)
     STATUS_CHOICES = (
@@ -25,6 +27,8 @@ class Payment(models.Model):
         ('failed', 'Failed'),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    # Allow users to clear (hide/archive) completed payments from their view
+    is_cleared = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.student.username} - ${self.amount_paid}"

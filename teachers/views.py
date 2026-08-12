@@ -521,6 +521,38 @@ def enter_grades(request):
         if request.method == 'POST':
             updated = 0
             final_submit = request.POST.get('final_submit') == '1'
+
+            # If this is a final submission, ensure every enrolled student has a grade
+            if final_submit:
+                missing = []
+                for enrollment in enrollments:
+                    sid = enrollment.student.id
+                    # check if a Grade already exists with a score
+                    g = Grade.objects.filter(student__id=sid, subject=subject).first()
+                    if g and g.score is not None:
+                        continue
+                    # otherwise check whether POST includes any component or legacy grade for this student
+                    quiz_val = request.POST.get(f'quiz_{sid}')
+                    mid_val = request.POST.get(f'mid_{sid}')
+                    assign_val = request.POST.get(f'assign_{sid}')
+                    final_val = request.POST.get(f'final_{sid}')
+                    grade_value = request.POST.get(f'grade_{sid}')
+                    if not any([quiz_val, mid_val, assign_val, final_val, grade_value]):
+                        missing.append(enrollment.student.get_full_name() or enrollment.student.username)
+
+                if missing:
+                    messages.error(request, 'Cannot finalize: the following students are missing scores: ' + ', '.join(missing))
+                    # redirect back to the same page without applying finalization
+                    try:
+                        ay = academic_year
+                    except NameError:
+                        ay = request.GET.get('academic_year') or _get_current_academic_year()
+                    try:
+                        sem = semester
+                    except NameError:
+                        sem = request.GET.get('semester') or _get_current_semester()
+                    qs = f'?subject_id={subject.id}&academic_year={ay}&semester={sem}'
+                    return redirect(request.path + qs)
             for enrollment in enrollments:
                     # Support component-based input (quiz, mid, assignment, final)
                     quiz_val = request.POST.get(f'quiz_{enrollment.student.id}')

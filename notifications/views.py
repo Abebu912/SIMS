@@ -5,6 +5,8 @@ from notifications.models import Announcement
 from django.utils import timezone
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import redirect
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -94,3 +96,36 @@ def student_announcements(request):
         'announcements': relevant_announcements,
     }
     return render(request, 'students/announcements.html', context)
+
+
+@staff_member_required
+def post_announcements(request):
+    """Simple admin page to post announcements (placeholder)."""
+    if request.method == 'POST':
+        # placeholder: in real app, process form and create Announcement
+        return redirect('dashboard')
+    return render(request, 'notifications/post_announcements.html', {'page_title': 'Post Announcements'})
+
+
+@staff_member_required
+def manage_users(request):
+    """Placeholder manage users admin page."""
+    return render(request, 'notifications/manage_users.html', {'page_title': 'Manage Users'})
+
+
+@staff_member_required
+def add_user(request):
+    """Placeholder add user page."""
+    return render(request, 'notifications/add_user.html', {'page_title': 'Add User'})
+
+
+@staff_member_required
+def system_settings(request):
+    """Placeholder system settings page."""
+    return render(request, 'notifications/system_settings.html', {'page_title': 'System Settings'})
+
+
+@staff_member_required
+def generate_reports(request):
+    """Placeholder generate reports page."""
+    return render(request, 'notifications/generate_reports.html', {'page_title': 'Generate Reports'})

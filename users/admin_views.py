@@ -2,9 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
-from .decorators import admin_required
+from .decorators import admin_required, admin_role_required
 from .models import User, StudentProfile, TeacherProfile
-from subjects.models import Subject
+from subjects.models import Subject, Enrollment
 from notifications.models import Announcement
 from notifications.models import Notification
 from .forms import UserCreationForm, SystemSettingsForm
@@ -31,7 +31,8 @@ except Exception:
 @login_required
 def admin_panel(request):
     """Admin panel view"""
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+    # Allow application-level administrators (role == 'admin') or Django superusers.
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -58,11 +59,14 @@ def admin_panel(request):
 @login_required
 def manage_users(request):
     """Manage users view for admin"""
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect('dashboard')
+    # Allow any logged-in user to view the list, but restrict actions to
+    # staff/admin users. This prevents redirecting non-admins away when
+    # they click "Manage Users" from the sidebar while making it clear
+    # that actions are managed by administrators.
+    # role == 'admin' or Django superuser may perform management actions
+    is_admin = getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser
     
-    users = User.objects.all().select_related('studentprofile', 'teacherprofile', 'parentprofile', 'registrarprofile', 'financeprofile')
+    users = User.objects.all().select_related('studentprofile', 'teacherprofile', 'parentprofile', 'registrarprofile', 'financeprofile', 'adminprofile')
     
     # Calculate statistics
     active_users_count = users.filter(is_active=True).count()
@@ -70,10 +74,15 @@ def manage_users(request):
     recent_users_count = users.filter(date_joined__gte=timezone.now() - timezone.timedelta(days=7)).count()
     
     if request.method == 'POST':
+        # Only allow state-changing actions from admins/superusers
+        if not is_admin:
+            messages.error(request, "Only administrators can perform user management actions.")
+            return redirect('manage_users')
+
         user_id = request.POST.get('user_id')
         action = request.POST.get('action')
         user = get_object_or_404(User, id=user_id)
-        
+
         if action == 'approve':
             user.is_approved = True
             user.save()
@@ -94,7 +103,7 @@ def manage_users(request):
             username = user.username
             user.delete()
             messages.success(request, f'User {username} has been deleted.')
-        
+
         return redirect('manage_users')
     
     context = {
@@ -102,15 +111,70 @@ def manage_users(request):
         'active_users_count': active_users_count,
         'pending_approvals_count': pending_approvals_count,
         'recent_users_count': recent_users_count,
+        'can_manage': is_admin,
     }
     return render(request, 'admin/manage_users.html', context)
+
+
+@login_required
+def edit_user(request, user_id):
+    """Allow administrators to edit a user's basic info and role/status."""
+    if not (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser):
+        messages.error(request, 'You do not have permission to edit users.')
+        return redirect('manage_users')
+
+    user = get_object_or_404(User, id=user_id)
+    from .forms import AdminUserEditForm
+
+    if request.method == 'POST':
+        form = AdminUserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'User {user.username} updated successfully.')
+            return redirect('manage_users')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        # Populate initial profile fields where available
+        initial = {}
+        try:
+            sp = user.studentprofile
+            initial['grade_level'] = getattr(sp, 'grade_level', '')
+            initial['academic_year'] = getattr(sp, 'academic_year', '')
+        except Exception:
+            pass
+        try:
+            tp = user.teacherprofile
+            initial['department'] = getattr(tp, 'department', '')
+        except Exception:
+            pass
+        try:
+            pp = user.parentprofile
+            initial['occupation'] = getattr(pp, 'occupation', '')
+        except Exception:
+            pass
+        try:
+            rp = user.registrarprofile
+            initial['office'] = getattr(rp, 'office', '')
+        except Exception:
+            pass
+        try:
+            fp = user.financeprofile
+            initial['finance_id'] = getattr(fp, 'finance_id', '')
+        except Exception:
+            pass
+
+        form = AdminUserEditForm(instance=user, initial=initial)
+
+    context = {'form': form, 'user_obj': user}
+    return render(request, 'admin/edit_user.html', context)
 @login_required
 def add_user(request):
     """Add user view for admin"""
     print("=== ADD USER VIEW CALLED ===")
     
-    # Check if user is admin
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+    # Only allow application-level administrators (role == 'admin').
+    if getattr(request.user, 'role', None) != 'admin':
         messages.error(request, "You don't have permission to access this page.")
         print("REDIRECT: User doesn't have admin permissions")
         return redirect('dashboard')
@@ -136,7 +200,7 @@ def add_user(request):
 @login_required
 def system_settings(request):
     """System settings view for admin"""
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+    if getattr(request.user, 'role', None) != 'admin':
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
@@ -335,14 +399,31 @@ def generate_reports(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect('dashboard')
     
-    # You can pass report data to the template
+    # Provide filter choices (grade level, academic year, semester)
     from django.db.models import Count
     reports = {
         'user_breakdown': User.objects.values('role').annotate(count=Count('id')),
     }
-    
+
+    # Grade choices from StudentProfile
+    try:
+        grade_choices = list(StudentProfile.GRADE_CHOICES)
+    except Exception:
+        grade_choices = []
+
+    # Academic years and semesters from Enrollment records
+    try:
+        academic_years = list(Enrollment.objects.values_list('academic_year', flat=True).distinct().order_by('-academic_year'))
+    except Exception:
+        academic_years = []
+
+    semesters = [c[0] for c in Enrollment.SEMESTER_CHOICES] if hasattr(Enrollment, 'SEMESTER_CHOICES') else ['first', 'second']
+
     context = {
         'reports': reports,
+        'grade_choices': grade_choices,
+        'academic_years': academic_years,
+        'semesters': semesters,
     }
     return render(request, 'admin/generate_reports.html', context)
 
@@ -365,6 +446,9 @@ def generate_report_download(request):
     fmt = 'pdf'
     date_from = request.GET.get('date_from') or request.GET.get('report_date_from')
     date_to = request.GET.get('date_to') or request.GET.get('report_date_to')
+    grade_level = request.GET.get('grade_level') or request.GET.get('filter_grade_level')
+    academic_year = request.GET.get('academic_year') or request.GET.get('filter_academic_year')
+    semester = request.GET.get('semester') or request.GET.get('filter_semester')
 
     # parse dates
     df = None
@@ -416,44 +500,72 @@ def generate_report_download(request):
                 return resp
 
     elif rtype == 'student_performance':
-        # gather grades within date range (graded_at) if provided
-        grades_qs = []
-        try:
-            grades_qs = Grade.objects.all().select_related('student', 'subject')
-            if df:
-                grades_qs = grades_qs.filter(graded_at__gte=df)
-            if dt:
-                grades_qs = grades_qs.filter(graded_at__lte=dt)
-        except Exception:
-            grades_qs = []
-
+        # Build student performance report grouped by enrollment. Apply filters
         filename_base = 'student_performance'
-        headers = ['Student', 'Subject', 'Quiz', 'Mid', 'Assignment', 'Final', 'Total', 'Remarks', 'Graded At']
+        headers = ['Student', 'Subject', 'Average %', 'Assignments Count', 'Remarks']
+        rows = []
+        try:
+            enroll_qs = Enrollment.objects.select_related('student', 'subject')
+            if academic_year:
+                enroll_qs = enroll_qs.filter(academic_year=academic_year)
+            if semester:
+                enroll_qs = enroll_qs.filter(semester=semester)
+            # filter by student grade level via StudentProfile
+            if grade_level:
+                enroll_qs = enroll_qs.filter(student__studentprofile__grade_level=grade_level)
+
+            for en in enroll_qs.order_by('student__username'):
+                grades = list(en.grades.select_related('assignment').all())
+                if not grades:
+                    avg_pct = ''
+                    count = 0
+                else:
+                    total_points = 0
+                    total_max = 0
+                    for g in grades:
+                        pts = float(getattr(g, 'points_earned', 0) or 0)
+                        maxp = float(getattr(getattr(g, 'assignment', None), 'max_points', 0) or 0)
+                        total_points += pts
+                        total_max += maxp
+                    avg_pct = round((total_points / total_max) * 100, 2) if total_max > 0 else 0
+                    count = len(grades)
+
+                rows.append([
+                    en.student.get_full_name() or en.student.username,
+                    getattr(en.subject, 'code', str(en.subject)),
+                    avg_pct,
+                    count,
+                    en.result or ''
+                ])
+        except Exception:
+            rows = []
 
         if fmt == 'csv':
             out = io.StringIO()
             writer = csv.writer(out)
             writer.writerow(headers)
-            for g in grades_qs:
-                writer.writerow([
-                    g.student.get_full_name() or g.student.username,
-                    getattr(g.subject, 'code', str(g.subject)),
-                    g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
-                    g.graded_at.isoformat() if getattr(g, 'graded_at', None) else ''
-                ])
+            for r in rows:
+                writer.writerow(r)
             resp = HttpResponse(out.getvalue(), content_type='text/csv')
             resp['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
             return resp
         else:
-            # Render HTML table then attempt PDF
-            rows = []
-            for g in grades_qs:
-                rows.append([
-                    g.student.get_full_name() or g.student.username,
-                    getattr(g.subject, 'code', str(g.subject)),
-                    g.quiz_score or '', g.mid_score or '', g.assignment_score or '', g.final_exam_score or '', g.score or '', g.remarks or '',
-                    g.graded_at.strftime('%Y-%m-%d %H:%M') if getattr(g, 'graded_at', None) else ''
-                ])
+            html = render_to_string('admin/report_pdf.html', {'title': 'Student Performance', 'headers': headers, 'rows': rows})
+            if HTML is not None:
+                pdf = HTML(string=html).write_pdf()
+                resp = HttpResponse(pdf, content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            elif pisa is not None:
+                outb = io.BytesIO()
+                pisa_status = pisa.CreatePDF(io.StringIO(html), dest=outb)
+                if pisa_status.err:
+                    return HttpResponse('Error generating PDF', status=500)
+                resp = HttpResponse(outb.getvalue(), content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename_base}.pdf"'
+                return resp
+            else:
+                return HttpResponse(html, content_type='text/html')
             html = render_to_string('admin/report_pdf.html', {'title': 'Student Performance', 'headers': headers, 'rows': rows})
             if HTML is not None:
                 pdf = HTML(string=html).write_pdf()
@@ -537,8 +649,142 @@ def generate_report_download(request):
             resp['Content-Disposition'] = 'attachment; filename="all_reports.csv"'
             return resp
 
+    # Additional report types
+    elif rtype == 'course_enrollment':
+            # Count enrollments per subject with filters
+            try:
+                from subjects.models import Subject, Enrollment as SubEnrollment
+                qs = SubEnrollment.objects.select_related('subject')
+                if academic_year:
+                    qs = qs.filter(academic_year=academic_year)
+                if semester:
+                    qs = qs.filter(semester=semester)
+                if grade_level:
+                    qs = qs.filter(student__studentprofile__grade_level=grade_level)
+                stats = qs.values('subject__code', 'subject__name').annotate(count=Count('id')).order_by('-count')
+                rows = [(s['subject__code'] or s['subject__name'], s['count']) for s in stats]
+            except Exception:
+                rows = []
+
+            filename_base = 'course_enrollment'
+            html = render_to_string('admin/report_pdf.html', {'title': 'Course Enrollment', 'headers': ['Subject','Enrolled'], 'rows': rows})
+            return HttpResponse(html, content_type='text/html')
+
+    elif rtype == 'grade_distribution':
+            try:
+                from subjects.models import Enrollment as SubEnrollment
+                enroll_qs = SubEnrollment.objects.select_related('student')
+                if academic_year:
+                    enroll_qs = enroll_qs.filter(academic_year=academic_year)
+                if semester:
+                    enroll_qs = enroll_qs.filter(semester=semester)
+                if grade_level:
+                    enroll_qs = enroll_qs.filter(student__studentprofile__grade_level=grade_level)
+
+                buckets = {'A':0,'B':0,'C':0,'D':0,'F':0,'N/A':0}
+                for en in enroll_qs:
+                    try:
+                        # compute average across grades
+                        grades = list(en.grades.select_related('assignment').all())
+                        if not grades:
+                            buckets['N/A'] += 1
+                            continue
+                        total_points = sum(float(getattr(g,'points_earned',0) or 0) for g in grades)
+                        total_max = sum(float(getattr(getattr(g,'assignment',None),'max_points',0) or 0) for g in grades)
+                        pct = (total_points / total_max) * 100 if total_max>0 else 0
+                        if pct >= 90:
+                            buckets['A'] += 1
+                        elif pct >=80:
+                            buckets['B'] += 1
+                        elif pct >=70:
+                            buckets['C'] += 1
+                        elif pct >=60:
+                            buckets['D'] += 1
+                        else:
+                            buckets['F'] += 1
+                    except Exception:
+                        buckets['N/A'] += 1
+                rows = [(k, v) for k,v in buckets.items()]
+            except Exception:
+                rows = []
+
+            html = render_to_string('admin/report_pdf.html', {'title': 'Grade Distribution', 'headers': ['Grade','Count'], 'rows': rows})
+            return HttpResponse(html, content_type='text/html')
+
+    elif rtype == 'attendance_summary':
+            try:
+                from subjects.models import Attendance
+                qs = Attendance.objects.select_related('enrollment__student')
+                if academic_year:
+                    qs = qs.filter(enrollment__academic_year=academic_year)
+                if semester:
+                    qs = qs.filter(enrollment__semester=semester)
+                if df:
+                    qs = qs.filter(date__gte=df.date())
+                if dt:
+                    qs = qs.filter(date__lte=dt.date())
+
+                summary = {}
+                for a in qs:
+                    student = a.enrollment.student
+                    key = student.get_full_name() or student.username
+                    if key not in summary:
+                        summary[key] = {'present':0,'absent':0,'late':0,'excused':0}
+                    summary[key][a.status] = summary[key].get(a.status,0) + 1
+
+                rows = []
+                for student, counts in summary.items():
+                    rows.append([student, counts.get('present',0), counts.get('absent',0), counts.get('late',0), counts.get('excused',0)])
+            except Exception:
+                rows = []
+
+            html = render_to_string('admin/report_pdf.html', {'title': 'Attendance Summary', 'headers': ['Student','Present','Absent','Late','Excused'], 'rows': rows})
+            return HttpResponse(html, content_type='text/html')
+
+    elif rtype in ('fee_collection','outstanding_fees','payment_trends','revenue_summary'):
+            try:
+                from payments.models import Payment, FeeStructure
+                payments = Payment.objects.select_related('student','fee_structure')
+                if df:
+                    payments = payments.filter(payment_date__gte=df)
+                if dt:
+                    payments = payments.filter(payment_date__lte=dt)
+
+                if rtype == 'fee_collection':
+                    rows = []
+                    total = 0
+                    for p in payments.order_by('-payment_date'):
+                        rows.append([p.student.get_full_name() or p.student.username, p.fee_structure.name if p.fee_structure else '', str(p.amount_paid), p.payment_date.strftime('%Y-%m-%d')])
+                        total += float(p.amount_paid or 0)
+                    headers = ['Student','Fee','Amount','Date']
+                    rows.insert(0, ['Total', total])
+                    html = render_to_string('admin/report_pdf.html', {'title':'Fee Collection Report','headers':headers,'rows':rows})
+                    return HttpResponse(html, content_type='text/html')
+
+                if rtype == 'outstanding_fees':
+                    expected_total = 0
+                    try:
+                        expected_total = float(FeeStructure.objects.filter(is_active=True).aggregate(total=Count('id'))['total'] or 0)
+                    except Exception:
+                        expected_total = 0
+                    # Compute per-student payments
+                    from django.db.models import Sum
+                    student_sums = payments.values('student__id','student__username').annotate(paid=Sum('amount_paid'))
+                    # naive outstanding: expected_total - paid
+                    rows = []
+                    for s in student_sums:
+                        paid = float(s.get('paid') or 0)
+                        outstand = expected_total - paid
+                        if outstand > 0:
+                            rows.append([s.get('student__username'), paid, outstand])
+            except Exception:
+                rows = []
+
+            html = render_to_string('admin/report_pdf.html', {'title': rtype.replace('_',' ').title(), 'headers': ['Student','Paid','Outstanding'], 'rows': rows})
+            return HttpResponse(html, content_type='text/html')
+
+    # Fallback: unknown report type
     else:
-        # For unimplemented report types, return a short HTML/PDF notice instead
         filename_base = f'report_{rtype or "unknown"}'
         html = render_to_string('admin/report_pdf.html', {
             'title': 'Report Not Implemented',

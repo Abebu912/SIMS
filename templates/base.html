@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+{% load i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,6 +21,14 @@
     />
 
     <style>
+      /* Responsive helper utilities */
+      .img-fluid { max-width: 100%; height: auto; display:block; }
+      .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      /* Ensure main content uses full width on small screens */
+      @media (max-width: 767.98px) {
+        .main-content { padding-left: 1rem; padding-right: 1rem; }
+      }
+
       /* Full-page background using project media image (use image.png from MEDIA) */
       body {
           /* Use a single full-page background that covers the viewport without repeating.
@@ -56,23 +65,93 @@
       /* Ensure main content and UI elements appear above the overlay */
       header, .navbar, .container, .main-content, .hero, .footer, .top-marquee { position: relative; z-index: 1 }
 
-      /* Let the page background image show through the sidebar and main area.
-         Keep link colors readable but remove bulky background effects. */
+      /* Make the sidebar high-contrast so it remains readable on bright LCDs.
+         Use a dark, saturated background and bold, slightly larger text so
+         items are visible from a distance. Icons get a colorful rounded
+         background to increase recognizability. */
       .sidebar {
         min-height: 100vh;
-        background: transparent;
+        background: linear-gradient(180deg, #0f3b5a 0%, #1b6aa0 100%);
+        padding-top: 1.25rem;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.12);
       }
       .sidebar .nav-link {
-        color: rgba(255,255,255,0.95);
-        padding: 12px 20px;
-        margin: 4px 0;
-        border-radius: 8px;
-        transition: all 0.3s;
+        color: #ffffff !important;
+        padding: 12px 18px;
+        margin: 6px 8px;
+        border-radius: 10px;
+        transition: background-color 0.18s ease, transform 0.18s ease;
+        font-size: 1.05rem;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
       }
+      /* Icon styling: give each icon a colorful rounded tile so it stands
+         out on bright screens. Keep the icon itself white for strong contrast. */
+      .sidebar .nav-link i {
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        margin-right: 12px;
+        color: #ffffff;
+        background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+        box-shadow: 0 3px 8px rgba(0,0,0,0.22);
+        font-size: 1.05rem;
+      }
+      /* Add a few bright accent classes for common icons to make them
+         visually distinctive. These won't interfere if custom icon SVGs are
+         later used. */
+      .sidebar .nav-link .fa-tachometer-alt { background: linear-gradient(135deg,#ff7b7b,#ffb199); }
+      .sidebar .nav-link .fa-users-cog { background: linear-gradient(135deg,#7ae7ff,#4bb6ff); }
+      .sidebar .nav-link .fa-user-plus { background: linear-gradient(135deg,#b8ff7a,#7ee07a); }
+      .sidebar .nav-link .fa-sliders-h { background: linear-gradient(135deg,#ffd36b,#ffb86b); }
+      .sidebar .nav-link .fa-file-alt { background: linear-gradient(135deg,#c9a7ff,#9e7bff); }
+      .sidebar .nav-link .fa-bullhorn { background: linear-gradient(135deg,#ff9ec2,#ff6fa3); }
+
       .sidebar .nav-link:hover,
       .sidebar .nav-link.active {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateX(4px);
       }
+      /* Quick Actions styling for parent users: larger icon tiles and readable labels */
+      .quick-actions .section-title {
+        padding: 8px 16px;
+        color: rgba(255,255,255,0.95);
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.2px;
+      }
+      .parent-quick {
+        padding: 10px 14px !important;
+        margin: 6px 8px !important;
+        border-radius: 12px !important;
+        background: transparent;
+        display: flex;
+        align-items: center;
+      }
+      .parent-quick i {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        margin-right: 14px;
+        font-size: 1.25rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+        box-shadow: 0 6px 14px rgba(0,0,0,0.28);
+      }
+      .parent-quick .label {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #ffffff;
+      }
+      .parent-quick:hover, .parent-quick.active { background: rgba(255,255,255,0.05); transform: translateX(4px); }
       /* Make the main content transparent so the image is visible across the page.
          Elements inside can still use cards/backgrounds for readability when necessary. */
       .main-content {
@@ -174,14 +253,30 @@
         .hero-section-overlay { width: 320px; height: 110px }
         .hero-full-logo { width: 280px; height: 96px; background-size: 400px auto }
       }
+      /* Ensure bootstrap tables don't overflow on small screens */
+      .main-content .table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
     </style>
   </head>
   <body>
+    <!-- Language switcher (client-side immediate swap + server-side set_language) -->
+    <div style="position:fixed;right:12px;top:12px;z-index:1050">
+      <form id="lang-form" action="/i18n/setlang/" method="post" style="display:inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button name="language" value="en" class="btn btn-sm btn-outline-light me-1" type="submit">EN</button>
+        <button name="language" value="am" class="btn btn-sm btn-outline-light" type="submit">AM</button>
+      </form>
+    </div>
     {% if user.is_authenticated %}
     <div class="container-fluid">
       <div class="row">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+        <!-- Sidebar: visible on md+, offcanvas on small screens -->
+        <nav class="col-md-3 col-lg-2 d-none d-md-block sidebar">
           <div class="position-sticky pt-4">
             <div class="text-center mb-4">
               <h4 class="text-white">
@@ -233,6 +328,63 @@
                 </a>
               </li>
               {% endif %}
+              <!-- Admin functions: quick links for admin users -->
+              {% if user.is_superuser or user.is_staff or user.role == 'admin' %}
+              <li class="nav-item mt-3">
+                <strong class="text-white-50 ps-3 small">{% trans "Admin" %}</strong>
+              </li>
+
+              {# Optional admin helpers: only render when URL name exists #}
+              {% url 'manage_users' as manage_users_url %}
+              {% if manage_users_url %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ manage_users_url }}">
+                  <i class="fas fa-users-cog me-2"></i>
+                  <span data-i18n="SIDEBAR_MANAGE_USERS">{% trans "Manage Users" %}</span>
+                </a>
+              </li>
+              {% endif %}
+
+              {% url 'add_user' as add_user_url %}
+              {% if add_user_url %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ add_user_url }}">
+                  <i class="fas fa-user-plus me-2"></i>
+                  <span data-i18n="SIDEBAR_ADD_USER">{% trans "Add User" %}</span>
+                </a>
+              </li>
+              {% endif %}
+
+              {% url 'system_settings' as system_settings_url %}
+              {% if system_settings_url %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ system_settings_url }}">
+                  <i class="fas fa-sliders-h me-2"></i>
+                  <span data-i18n="SIDEBAR_SYSTEM_SETTINGS">{% trans "System Settings" %}</span>
+                </a>
+              </li>
+              {% endif %}
+
+              {% url 'generate_reports' as generate_reports_url %}
+              {% if generate_reports_url %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ generate_reports_url }}">
+                  <i class="fas fa-file-alt me-2"></i>
+                  <span data-i18n="SIDEBAR_GENERATE_REPORTS">{% trans "Generate Reports" %}</span>
+                </a>
+              </li>
+              {% endif %}
+
+              {% url 'post_announcements' as post_announcements_url %}
+              {% if post_announcements_url %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ post_announcements_url }}">
+                  <i class="fas fa-bullhorn me-2"></i>
+                  <span data-i18n="SIDEBAR_POST_ANNOUNCEMENTS">{% trans "Post Announcements" %}</span>
+                </a>
+              </li>
+              {% endif %}
+              {% endif %}
 
               {% if user.is_admin or user.is_teacher %}
               <li class="nav-item">
@@ -253,14 +405,37 @@
               {% endif %}
 
               {% if user.is_parent %}
+              <li class="nav-item mt-3">
+                <div class="section-title px-2">{% trans "Quick Actions" %}</div>
+              </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <i class="fas fa-child me-2"></i>My Children
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'parent_dashboard' %}active{% endif %}" href="{% url 'parent_dashboard' %}">
+                  <i class="fas fa-user-tie"></i><span class="label">Parent Dashboard</span>
                 </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <i class="fas fa-receipt me-2"></i>Fee Status
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'view_children' %}active{% endif %}" href="{% url 'view_children' %}">
+                  <i class="fas fa-child"></i><span class="label">View My Children</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'school_announcements' or request.resolver_match.url_name == 'view_announcements' %}active{% endif %}" href="{% url 'school_announcements' %}">
+                  <i class="fas fa-bullhorn"></i><span class="label">School Announcements</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'parent_fees_summary' or request.resolver_match.url_name == 'child_fees' %}active{% endif %}" href="{% url 'parent_fees_summary' %}">
+                  <i class="fas fa-receipt"></i><span class="label">View Fee Statements</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'parent_progress_overview' or request.resolver_match.url_name == 'child_ranks' %}active{% endif %}" href="{% url 'parent_progress_overview' %}">
+                  <i class="fas fa-chart-line"></i><span class="label">Monitor Progress</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link parent-quick {% if request.resolver_match.url_name == 'parent_contact_teachers_overview' or request.resolver_match.url_name == 'contact_teachers' %}active{% endif %}" href="{% url 'parent_contact_teachers_overview' %}">
+                  <i class="fas fa-envelope"></i><span class="label">Contact Teachers</span>
                 </a>
               </li>
               {% endif %}
@@ -275,7 +450,71 @@
             </ul>
           </div>
         </nav>
+        
+        <!-- Offcanvas sidebar for small screens -->
+        <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="offcanvasSidebar" aria-labelledby="offcanvasSidebarLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasSidebarLabel">SIMS</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                  <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+              </li>
+              <!-- Duplicate the primary nav items for the offcanvas view. For maintainability you can later move these into an include. -->
+              {% if user.role == 'student' or user.is_student %}
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'student_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Student Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'subject_registration' %}"><i class="fas fa-clipboard-list me-2"></i>Subject Registration</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'view_transcripts' %}"><i class="fas fa-file-alt me-2"></i>My Transcripts</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'pay_fees' %}"><i class="fas fa-credit-card me-2"></i>Pay Fees</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'interact_with_ai' %}"><i class="fas fa-robot me-2"></i>AI Advisor</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'view_announcements' %}"><i class="fas fa-bullhorn me-2"></i>Announcements</a>
+              </li>
+              {% endif %}
 
+              {% if user.is_admin or user.is_teacher %}
+              <li class="nav-item">
+                <a class="nav-link" href="#"><i class="fas fa-users me-2"></i>Students</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#"><i class="fas fa-book me-2"></i>Courses</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#"><i class="fas fa-chart-bar me-2"></i>Ranks</a>
+              </li>
+              {% endif %}
+
+              {% if user.is_parent %}
+              <li class="nav-item">
+                <a class="nav-link" href="#"><i class="fas fa-child me-2"></i>My Children</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#"><i class="fas fa-receipt me-2"></i>Fee Status</a>
+              </li>
+              {% endif %}
+
+              {% if user.is_admin %}
+              <li class="nav-item">
+                <a class="nav-link" href="/admin"><i class="fas fa-cog me-2"></i>Admin Panel</a>
+              </li>
+              {% endif %}
+            </ul>
+          </div>
+        </div>
         <!-- Main content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
           <!-- Navbar -->
@@ -284,9 +523,11 @@
           >
             <div class="container-fluid">
               <span class="site-logo" aria-hidden="true"></span>
-              <span class="navbar-brand"
-                >Welcome, {{ user.get_full_name|default:user.username }}</span
-              >
+              <!-- Offcanvas toggle for small screens -->
+              <button class="btn btn-outline-light d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar" aria-controls="offcanvasSidebar">
+                <i class="fas fa-bars"></i>
+              </button>
+              <span class="navbar-brand">Welcome, {{ user.get_full_name|default:user.username }}</span>
 
               <div class="navbar-nav ms-auto">
                 <div class="nav-item dropdown">
@@ -306,9 +547,9 @@
                   </a>
                   <ul class="dropdown-menu">
                     <li>
-                      <a class="dropdown-item" href="#"
-                        ><i class="fas fa-user me-2"></i>Profile</a
-                      >
+                      <a class="dropdown-item" href="{% url 'profile' %}"
+                          ><i class="fas fa-user me-2"></i>Profile</a
+                        >
                     </li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
@@ -362,8 +603,183 @@
     </div>
     {% endif %}
 
+    <!-- Client-side quick translations (fallback) -->
+    <script>
+      const translations = {
+        'am': {
+          'SIMS_TITLE': 'የተማሪ መረጃ አስተዳደር ስርዓት',
+          'GET_STARTED': 'ጀምር',
+          'LEARN_MORE': 'ተጨማሪ መረጃ',
+          'STUDENTS': 'ተማሪዎች',
+          'TEACHERS': 'አስተማሪዎች',
+          'GRADE_LEVELS': 'የደረጃ ሚና',
+          'ABOUT_TITLE': 'ስለ ጊንባ ጀኒየር ትምህርት ቤት'
+          , 'ABOUT_LEAD': 'ጊንባ ጁኒየር ትምህርት ቤት ጥራታማ ትምህርት ለማቅረብ እና በአዳዲስ ቴክኖሎጂ መፍትሄዎች የትምህርት ጥራትን ለማሻሻል እየሰራ ነው'
+          , 'HERO_LEAD': 'በጊንባ ጁኒየር ትምህርት ቤት፣ ለተማሪዎች፣ አስተማሪዎች፣ ወላጆች እና አስተዳደሮች የተዘጋጀ የዲጂታል መፍትሄዎችን በመጠቀም ትምህርትን እንደምንደግፍ ይህን እናቀርባለን'
+          , 'EXCELLENCE_TITLE': 'የትምህርት ልዩነት'
+          , 'EXCELLENCE_LEAD': 'ከ1ኛ እስከ 8ኛ ክፍል ድረስ ጥራታማ ትምህርት እና አጠቃቀም እንዲኖረው እንረዳ'
+          , 'FACULTY_TITLE': 'ተሞልቷ ያለ አስተማሪ ወገን'
+          , 'FACULTY_LEAD': 'ተስፋይ እና ባለሙያ መምህራን የትምህርትን እርምጃ ይወስዳሉ'
+          , 'MODERN_TITLE': 'ዘመናዊ ቴክኖሎጂ'
+          , 'MODERN_LEAD': 'የትምህርት ልምዶችን ለማሻሻል ዘመናዊ ቴክኖሎጂን እናጠቀማለን'
+          , 'FEATURES_TITLE': 'የስርዓቱ ባህሪያት'
+          , 'FEATURES_LEAD': 'የእኛ አጠቃላይ SIMS መሣሪያ ለትምህርት አስተዳደር የሚረዳ ባህሪያትን ይሰጣል'
+          , 'FEATURE_STUDENT_TITLE': 'የተማሪ ምዝገባ'
+          , 'FEATURE_STUDENT_LEAD': 'የተማሪዎች ምዝገባ እና ፕሮፋይል አስተዳደር'
+          , 'FEATURE_COURSE_TITLE': 'የኮርስ አስተዳደር'
+          , 'FEATURE_COURSE_LEAD': 'የኮርስ ዝርዝር እና ምዝገባ አስተዳደር'
+          , 'FEATURE_GRADE_TITLE': 'የከፍ እና የውስጥ አስተዳደር'
+          , 'FEATURE_GRADE_LEAD': 'በሪዝ ጊዜ የውጤት መከታተያ እና ሪፖርት'
+          , 'FEATURE_FEE_TITLE': 'የክፍያ አስተዳደር'
+          , 'FEATURE_FEE_LEAD': 'የክፍያ ስብስብ እና የክፍያ መቆጣጠሪያ'
+          , 'FEATURE_NOTIF_TITLE': 'በቀጥታ ማስታወቂያዎች'
+          , 'FEATURE_NOTIF_LEAD': 'ስለ ውጤቶች፣ ስራዎች እና አስፈላጊ ማስታወቂያዎች የቀጥታ ማሳወቂያዎች'
+          , 'FEATURE_AI_TITLE': 'የAI አካዳሚክ አማካሪ'
+          , 'FEATURE_AI_LEAD': 'የኮርስ ምክር እና የትምህርት መመሪያ'
+          , 'RESOURCES_TITLE': 'ሀብቶች'
+          , 'RESOURCES_LEAD': 'ለተማሪዎች የተመረጡ መጽሐፍት እና መረጃ ሀብቶች'
+          , 'ROLES_TITLE': 'የተጠቃሚ ሚናዎች'
+          , 'ROLES_LEAD': 'የስርዓቱ የተለያዩ የተጠቃሚ አይነቶች ለየተለያዩ ሚናዎች ይሰጣሉ'
+          , 'ROLE_ADMIN_TITLE': 'አስተዳዳሪ'
+          , 'ROLE_ADMIN_LEAD': 'የስርዓቱ አስተዳደር ፣ የተጠቃሚ አስተዳደር እና አስተካካይ'
+          , 'ROLE_REGISTRAR_TITLE': 'የምዝገባ ሰራተኛ'
+          , 'ROLE_REGISTRAR_LEAD': 'የተማሪ ምዝገባ፣ የትምህርት መዝገቦች እና ሪእነቶች'
+          , 'ROLE_FINANCE_TITLE': 'የፋይናንስ ሰራተኛ'
+          , 'ROLE_FINANCE_LEAD': 'የክፍያ አስተዳደር ፣ የክፍያ ሂደት እና ፋይናንስ ሪፖርት'
+          , 'ROLE_TEACHER_TITLE': 'አስተማሪ'
+          , 'ROLE_TEACHER_LEAD': 'የክፍል አስተዳደር፣ የውጤት ግብርና እና የአፈፃፀም ሪፖርቲንግ'
+          , 'ROLE_PARENT_TITLE': 'ወላጅ'
+          , 'ROLE_PARENT_LEAD': 'የልጅ እድገት፣ የእንደምትኖሩ እና የክፍያ ሁኔታ እይ'
+          , 'ROLE_STUDENT_TITLE': 'ተማሪ'
+          , 'ROLE_STUDENT_LEAD': 'ኮርሶችን ይዞ የውጤት መመልከቻ እና ከAI አማካሪ ጋር መገናኘት'
+          , 'NAV_ABOUT': 'ስለ እኛ'
+          , 'NAV_FEATURES': 'ባህሪያት'
+          , 'NAV_ROLES': 'የተጠቃሚ ሚናዎች'
+          , 'NAV_CONTACT': 'አግኙን'
+          , 'NAV_LOGIN': 'ግባ'
+          , 'LOGIN_TITLE': 'የተጠቃሚ ግባ'
+          , 'LOGIN_WELCOME': 'ወደ SIMS በደህና መመለስ'
+          , 'LOGIN_ERROR': 'እባክዎን እትክት የተጠቃሚ ስም እና የሚስጥር ቃል ያስገቡ።'
+          , 'USERNAME_LABEL': 'የተጠቃሚ ስም'
+          , 'ENTER_USERNAME': 'የተጠቃሚ ስምዎን ያስገቡ'
+          , 'PASSWORD_LABEL': 'የሚስጥር ቃል'
+          , 'ENTER_PASSWORD': 'የሚስጥር ቃልዎን ያስገቡ'
+          , 'LOGIN_BTN': 'ግባ'
+          , 'NO_ACCOUNT': 'መለያ የለዎትም?'
+          , 'REGISTER_HERE': 'እዚህ ይመዝገቡ'
+          , 'FORGOT_PASSWORD': 'የይለፍ ቃልዎን ረሳኸው?'
+          , 'BACK_TO_HOME': 'ወደ መነሻ ተመለስ'
+          , 'FOOTER_TITLE': 'የተማሪ መረጃ ስርዓት'
+          , 'FOOTER_LEAD': 'በጊንባ ጀኒየር ትምህርት ቤት ውስጥ የትምህርትን እድገት እና የቴክኖሎጂ መፍትሄዎችን እናቀርባለን'
+          , 'FOOTER_QUICK': 'ፈጣን አገናኞች'
+          , 'FOOTER_HOME': 'መነሻ'
+          , 'FOOTER_FEATURES': 'ባህሪያት'
+          , 'FOOTER_CONTACT': 'አግኙን'
+          , 'FOOTER_ACCESS': 'የተጠቃሚ መዳረሻ'
+          , 'FOOTER_STUDENT_LOGIN': 'የተማሪ ግባ'
+          , 'FOOTER_TEACHER_LOGIN': 'የአስተማሪ ግባ'
+          , 'FOOTER_PARENT_LOGIN': 'የወላጅ ግባ'
+          , 'BRAND_NAME': 'ጊንባ ጁኒየር ትምህርት ቤት'
+          , 'FOOTER_ADDRESS': 'ጊንባ ጁኒየር ትምህርት ቤት፣ አዲስ አበባ፣ ኢትዮጵያ'
+          , 'FOOTER_COPY': '© 2024 ጊንባ ጁኒየር ትምህርት ቤት። የቅድሚያ መብት የተጠበቀ'
+          , 'SIDEBAR_ADMIN_PANEL': 'የአስተዳደር መስክ'
+          , 'SIDEBAR_MANAGE_USERS': 'ተጠቃሚዎችን አስተዳደር'
+          , 'SIDEBAR_ADD_USER': 'የተጠቃሚ ጨምር'
+          , 'SIDEBAR_SYSTEM_SETTINGS': 'የስርዓት ቅንብሮች'
+          , 'SIDEBAR_GENERATE_REPORTS': 'ሪፖርቶች ያበሩ'
+          , 'SIDEBAR_POST_ANNOUNCEMENTS': 'ማስታወቂያዎች አስቀምጥ'
+          , 'CREATE_ACCOUNT_TITLE': 'የመዝገበ መለያ ፍጠር'
+          , 'CREATE_ACCOUNT_LEAD': 'ወደ የተማሪ መረጃ አስተዳደር ስርዓት ይቀላቀሉ'
+          , 'REGISTER_ERRORS': 'እባክዎን በታች ያሉትን ስህተቶች ያስተካክሉ'
+          , 'REGISTER_ENTER_USERNAME': 'የተጠቃሚ ስም ይምረጡ'
+          , 'REGISTER_ENTER_EMAIL': 'ኢሜይልዎን ያስገቡ'
+          , 'FIRST_NAME_LABEL': 'የመጀመሪያ ስም'
+          , 'REGISTER_ENTER_FIRSTNAME': 'የመጀመሪያ ስም ያስገቡ'
+          , 'LAST_NAME_LABEL': 'የአያያዝ ስም'
+          , 'REGISTER_ENTER_LASTNAME': 'የአያያዝ ስም ያስገቡ'
+          , 'ROLE_LABEL': 'ሚና'
+          , 'SELECT_ROLE': 'ሚና ይምረጡ'
+          , 'ROLE_STUDENT': 'ተማሪ'
+          , 'ROLE_TEACHER': 'አስተማሪ'
+          , 'ROLE_PARENT': 'ወላጅ'
+          , 'ROLE_ADMIN': 'አስተዳዳሪ'
+          , 'ROLE_REGISTRAR': 'የምዝገባ ሰራተኛ'
+          , 'ROLE_FINANCE': 'የፋይናንስ ሰራተኛ'
+          , 'ROLE_HINT': 'በስርዓቱ ውስጥ ሚናዎን ይምረጡ'
+          , 'STUDENT_INFO_TITLE': 'የተማሪ መረጃ'
+          , 'GRADE_LEVEL_LABEL': 'የደረጃ መደብ'
+          , 'SELECT_GRADE': 'የደረጃ መደብ ይምረጡ'
+          , 'GRADE_HINT': 'የደረጃዎን ይምረጡ (1-8)'
+          , 'TEACHER_INFO_TITLE': 'የአስተማሪ መረጃ'
+          , 'PARENT_INFO_TITLE': 'የወላጅ መረጃ'
+          , 'PHONE_LABEL': 'ስልክ'
+          , 'REGISTER_ENTER_PHONE': 'የስልክ ቁጥር ያስገቡ'
+          , 'DOB_LABEL': 'የመውለድ ቀን'
+          , 'REGISTER_ENTER_PASSWORD': 'የሚስጥር ቃል ያስገቡ'
+          , 'CONFIRM_PASSWORD_LABEL': 'የሚስጥር ቃልን ያረጋግጡ'
+          , 'REGISTER_CONFIRM_PASSWORD': 'የሚስጥር ቃልን ያረጋግጡ'
+          , 'CREATE_ACCOUNT_BTN': 'መለያ ይፍጠሩ'
+          , 'ALREADY_ACCOUNT': 'አሁን መለያ ካለዎት?'
+          , 'LOGIN_HERE': 'እዚህ ይግቡ'
+        }
+      };
+
+      function applyClientLang(lang) {
+        if (!lang || lang === 'en') return;
+        // text content replacements
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          const txt = translations[lang] && translations[lang][key];
+          if (txt) el.textContent = txt;
+        });
+        // placeholder replacements for inputs
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+          const key = el.getAttribute('data-i18n-placeholder');
+          const txt = translations[lang] && translations[lang][key];
+          if (txt) el.setAttribute('placeholder', txt);
+        });
+        // option/value replacements for selects (data-i18n-value)
+        document.querySelectorAll('[data-i18n-value]').forEach(el => {
+          const key = el.getAttribute('data-i18n-value');
+          const txt = translations[lang] && translations[lang][key];
+          if (txt) el.textContent = txt;
+        });
+        // handle options that might have data-i18n attribute directly
+        document.querySelectorAll('option[data-i18n]').forEach(opt => {
+          const key = opt.getAttribute('data-i18n');
+          const txt = translations[lang] && translations[lang][key];
+          if (txt) opt.textContent = txt;
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        try {
+          const match = document.cookie.match(/(^|;)\s*django_language=([^;]+)/);
+          const lang = match ? decodeURIComponent(match[2]) : localStorage.getItem('site_lang');
+          if (lang) applyClientLang(lang);
+        } catch(e){}
+        document.querySelectorAll('#lang-form button[name="language"]').forEach(btn => {
+          btn.addEventListener('click', () => { localStorage.setItem('site_lang', btn.value); });
+        });
+      });
+    </script>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // Auto-close offcanvas when a navigation link is clicked (improves UX on small screens)
+      document.addEventListener('click', function (e) {
+        var target = e.target.closest('a');
+        if (!target) return;
+        var offcanvas = document.getElementById('offcanvasSidebar');
+        if (!offcanvas) return;
+        if (offcanvas.classList.contains('show') && target.classList.contains('nav-link')) {
+          var oc = bootstrap.Offcanvas.getInstance(offcanvas) || new bootstrap.Offcanvas(offcanvas);
+          oc.hide();
+        }
+      });
+    </script>
 
     {% block scripts %}{% endblock %}
   </body>

@@ -146,11 +146,7 @@ class LoginApp:
                              command=self.handle_login, width=20, height=2)
         login_btn.pack(pady=20)
         
-        # Register link
-        register_btn = tk.Button(main_frame, text="Don't have an account? Register here", 
-                                font=('Arial', 10), bg='white', fg='#3498db',
-                                relief='flat', command=self.show_register_page)
-        register_btn.pack(pady=10)
+        # Register link removed to prevent public self-registration
         
         # Admin info
         admin_info = tk.Label(main_frame, 

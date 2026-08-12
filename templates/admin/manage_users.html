@@ -25,13 +25,21 @@
 
                     <!-- Quick Actions -->
                     <div class="d-flex justify-content-between mb-4">
+                        {% if can_manage %}
                         <a href="{% url 'add_user' %}" class="btn btn-success">
                             <i class="fas fa-user-plus me-2"></i>Add New User
                         </a>
+                        {% else %}
+                        <div></div>
+                        {% endif %}
                         <a href="{% url 'admin_panel' %}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Admin Panel
                         </a>
                     </div>
+
+                    {% if not can_manage %}
+                        <div class="alert alert-info">This page lists users for viewing only. User management actions are available to administrators.</div>
+                    {% endif %}
 
                     <!-- Users Table -->
                     <div class="table-responsive">
@@ -80,6 +88,7 @@
                                     </td>
                                     <td>{{ user.date_joined|date:"M d, Y" }}</td>
                                     <td>
+                                        {% if can_manage %}
                                         <div class="btn-group btn-group-sm">
                                             <!-- Approve/Disapprove Button -->
                                             {% if not user.is_approved %}
@@ -132,7 +141,14 @@
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
+                                            <!-- Edit Button -->
+                                            <a href="{% url 'edit_user' user.id %}" class="btn btn-info btn-sm ms-1" title="Edit User">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                         </div>
+                                        {% else %}
+                                            <small class="text-muted">Managed by administrators</small>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

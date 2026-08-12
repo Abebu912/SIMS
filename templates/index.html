@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
 
 {% load static %}
+{% load i18n %}
 {% block auth_content %}
 <!-- Top moving text bar -->
 <div class="top-marquee">
   <div class="container">
-    <div class="marquee-inner">STUDENT INFORMATION MANAGEMENT SYSTEM AT GINBA JUNIER SCHOOL</div>
+    <div class="marquee-inner" data-i18n="SIMS_TITLE">{% trans "STUDENT INFORMATION MANAGEMENT SYSTEM AT GINBA JUNIER SCHOOL" %}</div>
   </div>
 </div>
 <style>
-  :root{--primary:#245aa2;--accent:#f26322;--muted:#f6f7f9}
+  :root{--primary:#245aa2;--accent:#f26322;--muted:#e8e8e8;--card-bg:#C0C0C0}
   /* Hero uses the site media background image with a translucent gradient overlay */
   .hero{
     color:#fff;
@@ -18,6 +19,12 @@
     /* Make hero transparent so the full-page background image shows clearly */
     background: transparent;
   }
+  .hero{position:relative}
+  /* Add a subtle dark overlay behind hero text for better contrast */
+  .hero-text{background:rgba(0,0,0,0.45);display:inline-block;padding:22px;border-radius:8px}
+  .hero-text h1,.hero-text p,.hero-text .btn{color:#fff !important}
+  .hero-text{box-shadow:none !important}
+  .hero-text h1{text-shadow:none}
   .hero:hover{transform:translateY(-4px)}
   .brand-logo{display:flex;align-items:center;gap:.6rem;font-weight:700;color:#fff}
   .brand-logo svg{height:36px;width:36px}
@@ -31,31 +38,58 @@
   @keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
   .feature-card{border-radius:12px;box-shadow:0 6px 18px rgba(20,30,60,.06);transition:transform .25s,box-shadow .25s}
   .feature-card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(20,30,60,.12)}
+  /* Feature card image helper */
+  .feature-card .card-image img{width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:12px}
   .role-card{border-radius:12px;border:1px solid #eef2f6;padding:28px;background:#fff;transition:all .2s}
   .role-card:hover{transform:translateY(-6px);box-shadow:0 10px 20px rgba(0,0,0,.06)}
     /* Resource gallery images sizing */
     .resource-img{max-height:220px;object-fit:contain;padding:8px}
   .contact-card{border-radius:12px;background:#fff;padding:20px;box-shadow:0 6px 18px rgba(20,30,60,.06)}
+  /* Small caption for feature images */
+  .image-note{margin-top:6px;margin-bottom:12px;font-style:italic;color:rgba(0,0,0,0.6)}
   /* Header / Navbar: transparent so background image is visible behind it */
   header.bg-white, .navbar.bg-white, .navbar, header {background: transparent !important; box-shadow: none !important}
   .navbar .nav-link, header .nav-link {color: rgba(255,255,255,0.95) !important}
   .navbar-brand, .brand-logo {color: rgba(255,255,255,0.98); font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,0.6)}
 
-    /* Footer transparent to show the full image through */
-    .footer{background:transparent;color:#000;padding:48px 0}
-    /* Ensure headings, paragraphs and links inside footer are black even
-       when utility classes like `text-white` are present in templates. */
+    /* Footer: use a solid dark background so footer text is readable */
+    .footer{background:#000;color:#fff;padding:48px 0}
+    /* Ensure headings, paragraphs and links inside footer are white */
     .footer h5, .footer h6, .footer p, .footer a, .footer .text-white, .footer .text-white-50 {
-      color: #000 !important;
+      color: #fff !important;
+    }
+    .footer .text-white-50 {
+      color: rgba(255,255,255,0.65) !important;
     }
 
-    /* Do NOT override all `.bg-white` or inline background styles globally —
-      that made cards and content too faint. Keep cards slightly opaque for
-      readability while allowing the overall page background to show. */
-    .feature-card, .role-card, .contact-card { background: rgba(255,255,255,0.95); }
+    /* Use a silver tone for page section backgrounds and cards. Target only
+      the page sections and the card helpers so Bootstrap utilities remain
+      functional elsewhere. */
+    .py-5.bg-white { background: var(--muted) !important; }
+    /* Apply softer card background and reduced shadows */
+    .feature-card, .role-card, .contact-card { background: var(--card-bg) !important; box-shadow: 0 6px 18px rgba(20,30,60,.04) !important; border: 1px solid rgba(20,30,60,0.04) !important; }
+    /* Strongly override any nested white backgrounds inside cards */
+    .feature-card, .role-card, .contact-card,
+    .feature-card *, .role-card *, .contact-card * {
+      background: transparent !important;
+      color: inherit !important;
+    }
+    /* Re-apply the softer card background on the card container only */
+    .feature-card, .role-card, .contact-card { background: var(--card-bg) !important; }
+    /* Also target common utility wrappers used in templates */
+    .feature-card .p-4, .role-card .p-4, .contact-card .p-3, .feature-card .bg-white, .role-card .bg-white, .contact-card .bg-white {
+      background: transparent !important;
+    }
+    /* If there are bootstrap .card elements inside, style their container */
+    .feature-card .card, .role-card .card, .contact-card .card { background: transparent !important; box-shadow: none !important; }
   .accent{color:var(--accent)}
   .cta-btn{background:var(--accent);border:none}
   @media(max-width:767px){.hero{padding:48px 0}}
+  /* Top-left decorative video */
+  .top-left-video{position:fixed;left:12px;top:12px;z-index:1050;overflow:hidden;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.25)}
+  .top-left-video video{display:block;height:auto;width:220px;max-width:28vw;border-radius:8px}
+  @media(max-width:767px){.top-left-video{left:8px;top:8px}.top-left-video video{width:140px;max-width:36vw}}
+  /* Hero right-column kept empty; decorative media moved into cards */
 </style>
 
 <!-- Top navigation (light on unauthenticated pages) -->
@@ -63,7 +97,7 @@
   <div class="container">
     <nav class="navbar navbar-expand-lg navbar-light">
       <a class="navbar-brand d-flex align-items-center" href="#">
-        <span class="brand-logo">Ginba Junior School</span>
+        <span class="brand-logo" data-i18n="BRAND_NAME">{% trans "Ginba Junior School" %}</span>
       </a>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#homeNav">
@@ -72,47 +106,56 @@
 
       <div class="collapse navbar-collapse" id="homeNav">
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
-          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
-          <li class="nav-item"><a class="nav-link" href="#roles">User Roles</a></li>
-          <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
-          <li class="nav-item ms-3"><a class="btn btn-outline-primary" href="{% url 'login' %}">Login</a></li>
+          <li class="nav-item"><a class="nav-link" href="#about" data-i18n="NAV_ABOUT">{% trans "About" %}</a></li>
+          <li class="nav-item"><a class="nav-link" href="#features" data-i18n="NAV_FEATURES">{% trans "Features" %}</a></li>
+          <li class="nav-item"><a class="nav-link" href="#roles" data-i18n="NAV_ROLES">{% trans "User Roles" %}</a></li>
+          <li class="nav-item"><a class="nav-link" href="#contact" data-i18n="NAV_CONTACT">{% trans "Contact" %}</a></li>
+          <li class="nav-item ms-3"><a class="btn btn-outline-primary" href="{% url 'login' %}" data-i18n="NAV_LOGIN">{% trans "Login" %}</a></li>
         </ul>
       </div>
     </nav>
   </div>
 </header>
 
+<!-- Top-left video (uses media/video.mp4) -->
+<div class="top-left-video d-none d-sm-block" aria-hidden="true">
+  <video muted autoplay loop playsinline preload="metadata">
+    <source src="{{ MEDIA_URL }}video.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <!-- Hero -->
 <section class="hero">
   <div class="container">
     <div class="row align-items-center">
       <div class="col-lg-6">
-        <h1 class="display-5 fw-bold">SIMS:Student Information Management System</h1>
-        <p class="lead mt-3 mb-4">Empowering education at Ginba Junior School with comprehensive digital solutions for students, teachers, parents, and administrators.</p>
-        <div class="d-flex gap-2">
-          <a href="{% url 'register' %}" class="btn btn-light btn-lg">Get Started</a>
-          <a href="#features" class="btn btn-outline-light btn-lg">Learn More</a>
-        </div>
+        <div class="hero-text">
+          <h1 class="display-5 fw-bold" data-i18n="SIMS_TITLE">{% trans "SIMS: Student Information Management System" %}</h1>
+          <p class="lead mt-3 mb-4" data-i18n="HERO_LEAD">{% trans "Empowering education at Ginba Junior School with comprehensive digital solutions for students, teachers, parents, and administrators." %}</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'register' %}" class="btn btn-light btn-lg" data-i18n="GET_STARTED">{% trans "Get Started" %}</a>
+            <a href="#features" class="btn btn-outline-light btn-lg" data-i18n="LEARN_MORE">{% trans "Learn More" %}</a>
+          </div>
 
-        <div class="d-flex gap-4 mt-5 text-white-50">
-          <div>
-            <h4 class="mb-0">500+</h4>
-            <small>Students</small>
-          </div>
-          <div>
-            <h4 class="mb-0">50+</h4>
-            <small>Teachers</small>
-          </div>
-          <div>
-            <h4 class="mb-0">8</h4>
-            <small>Grade Levels</small>
+          <div class="d-flex gap-4 mt-5 text-white-50">
+            <div>
+              <h4 class="mb-0">500+</h4>
+              <small data-i18n="STUDENTS">{% trans "Students" %}</small>
+            </div>
+            <div>
+              <h4 class="mb-0">50+</h4>
+              <small data-i18n="TEACHERS">{% trans "Teachers" %}</small>
+            </div>
+            <div>
+              <h4 class="mb-0">8</h4>
+              <small data-i18n="GRADE_LEVELS">{% trans "Grade Levels" %}</small>
+            </div>
           </div>
         </div>
       </div>
       <div class="col-lg-6 text-center mt-4 mt-lg-0 d-none d-lg-block">
-        <!-- Decorative column removed; hero uses the media background image. Keep this column hidden on small screens. -->
-        
+        <!-- Decorative column kept empty for hero (image moved into cards) -->
       </div>
     </div>
   </div>
@@ -121,29 +164,29 @@
 <!-- About -->
 <section id="about" class="py-5 bg-white">
   <div class="container text-center">
-    <h2 class="fw-bold">About Ginba Junior School</h2>
-    <p class="text-muted">Ginba Junior School is committed to providing quality education and fostering academic excellence through innovative technology solutions.</p>
+    <h2 class="fw-bold" data-i18n="ABOUT_TITLE">{% trans "About Ginba Junior School" %}</h2>
+    <p class="text-muted" data-i18n="ABOUT_LEAD">{% trans "Ginba Junior School is committed to providing quality education and fostering academic excellence through innovative technology solutions." %}</p>
 
     <div class="row g-4 mt-4">
       <div class="col-md-4">
         <div class="p-4 feature-card bg-white text-center">
-          <i class="fas fa-award fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Excellence in Education</h5>
-          <p class="text-muted small">We maintain high academic standards and provide comprehensive education from Grade 1 to Grade 8.</p>
+          <div class="card-image"><img src="{{ MEDIA_URL }}excellence.jpg" alt="Excellence in Education" class="img-fluid"/></div>
+          <h5 class="fw-bold" data-i18n="EXCELLENCE_TITLE">{% trans "Excellence in Education" %}</h5>
+          <p class="text-muted small" data-i18n="EXCELLENCE_LEAD">{% trans "We maintain high academic standards and provide comprehensive education from Grade 1 to Grade 8." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 feature-card bg-white text-center">
-          <i class="fas fa-chalkboard-teacher fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Experienced Faculty</h5>
-          <p class="text-muted small">Our dedicated teachers bring years of experience and passion for nurturing young minds.</p>
+          <div class="card-image"><img src="{{ MEDIA_URL }}teacher.webp" alt="Experienced Faculty" class="img-fluid" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=400 height=140><rect width=100% height=100% fill=%23C0C0C0/><text x=50% y=50% dominant-baseline=middle text-anchor=middle fill=%23333 font-size=16>Image not found</text></svg>'"/></div>
+          <h5 class="fw-bold" data-i18n="FACULTY_TITLE">{% trans "Experienced Faculty" %}</h5>
+          <p class="text-muted small" data-i18n="FACULTY_LEAD">{% trans "Our dedicated teachers bring years of experience and passion for nurturing young minds." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 feature-card bg-white text-center">
-          <i class="fas fa-laptop-code fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Modern Technology</h5>
-          <p class="text-muted small">We leverage cutting-edge technology to enhance learning experiences and administrative efficiency.</p>
+          <div class="card-image"><img src="{{ MEDIA_URL }}pc.jpg" alt="Modern Technology" class="img-fluid" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=400 height=140><rect width=100% height=100% fill=%23C0C0C0/><text x=50% y=50% dominant-baseline=middle text-anchor=middle fill=%23333 font-size=16>Image not found</text></svg>'"/></div>
+          <h5 class="fw-bold" data-i18n="MODERN_TITLE">{% trans "Modern Technology" %}</h5>
+          <p class="text-muted small" data-i18n="MODERN_LEAD">{% trans "We leverage cutting-edge technology to enhance learning experiences and administrative efficiency." %}</p>
         </div>
       </div>
     </div>
@@ -153,52 +196,64 @@
 <!-- Features -->
 <section id="features" class="py-5" style="background:var(--muted)">
   <div class="container">
-    <div class="text-center mb-4">
-      <h3 class="fw-bold">System Features</h3>
-      <p class="text-muted">Our comprehensive SIMS platform offers powerful features designed to streamline educational management.</p>
+      <div class="text-center mb-4">
+      <h3 class="fw-bold" data-i18n="FEATURES_TITLE">{% trans "System Features" %}</h3>
+      <p class="text-muted" data-i18n="FEATURES_LEAD">{% trans "Our comprehensive SIMS platform offers powerful features designed to streamline educational management." %}</p>
     </div>
 
     <div class="row g-4">
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}regstrar.webp" alt="Student Registration" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Illustration showing streamlined student enrollment and onboarding for easy profile creation and registration.</p>
           <i class="fas fa-user-graduate fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Student Registration</h5>
-          <p class="text-muted small">Streamlined student enrollment and profile management system.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_STUDENT_TITLE">{% trans "Student Registration" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_STUDENT_LEAD">{% trans "Streamlined student enrollment and profile management system." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}subject.jpg" alt="Course Management" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Artwork of course materials and study resources illustrating curriculum organization and content management.</p>
           <i class="fas fa-book fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Course Management</h5>
-          <p class="text-muted small">Comprehensive course catalog and enrollment management.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_COURSE_TITLE">{% trans "Course Management" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_COURSE_LEAD">{% trans "Comprehensive course catalog and enrollment management." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}students.jpg" alt="Grade Management" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Photograph of students using laptops in class — represents digital gradebook and real-time performance tracking.</p>
           <i class="fas fa-chart-line fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Grade Management</h5>
-          <p class="text-muted small">Digital gradebook with real-time grade tracking and reporting.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_GRADE_TITLE">{% trans "Grade Management" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_GRADE_LEAD">{% trans "Digital gradebook with real-time grade tracking and reporting." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}photo.jpg" alt="Fee Management" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Promotional-style graphic used here to represent billing, payments and fee collection processes.</p>
           <i class="fas fa-wallet fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Fee Management</h5>
-          <p class="text-muted small">Automated fee collection and payment tracking system.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_FEE_TITLE">{% trans "Fee Management" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_FEE_LEAD">{% trans "Automated fee collection and payment tracking system." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}real.jpg" alt="Real-time Notifications" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Icon-style illustration indicating instant alerts, announcements and communication for users.</p>
           <i class="fas fa-bell fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Real-time Notifications</h5>
-          <p class="text-muted small">Instant alerts for grades, assignments, and important announcements.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_NOTIF_TITLE">{% trans "Real-time Notifications" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_NOTIF_LEAD">{% trans "Instant alerts for grades, assignments, and important announcements." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-4 bg-white feature-card h-100 text-center">
+          <div class="card-image"><img src="{{ MEDIA_URL }}ai.jpg" alt="AI Academic Advisor" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <p class="text-muted small image-note">Illustration representing an AI assistant offering course recommendations and personalized academic guidance.</p>
           <i class="fas fa-robot fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">AI Academic Advisor</h5>
-          <p class="text-muted small">Intelligent course recommendations and academic guidance.</p>
+          <h5 class="fw-bold" data-i18n="FEATURE_AI_TITLE">{% trans "AI Academic Advisor" %}</h5>
+          <p class="text-muted small" data-i18n="FEATURE_AI_LEAD">{% trans "Intelligent course recommendations and academic guidance." %}</p>
         </div>
       </div>
     </div>
@@ -208,8 +263,8 @@
 <!-- Resources / Library Images -->
 <section id="resources" class="py-5 bg-white">
   <div class="container text-center">
-    <h3 class="fw-bold mb-4">Resources</h3>
-    <p class="text-muted">Selected library resources and textbooks available to students.</p>
+  <h3 class="fw-bold mb-4" data-i18n="RESOURCES_TITLE">{% trans "Resources" %}</h3>
+  <p class="text-muted" data-i18n="RESOURCES_LEAD">{% trans "Selected library resources and textbooks available to students." %}</p>
 
     <div class="row g-4 mt-4 resource-gallery">
       <div class="col-md-4">
@@ -266,50 +321,52 @@
 <!-- User Roles -->
 <section id="roles" class="py-5 bg-white">
   <div class="container">
-    <div class="text-center mb-4">
-      <h3 class="fw-bold">User Roles</h3>
-      <p class="text-muted">Our system caters to different user types with role-specific features and permissions.</p>
-    </div>
+      <div class="text-center mb-4">
+      <h3 class="fw-bold" data-i18n="ROLES_TITLE">{% trans "User Roles" %}</h3>
+          <h5 class="fw-bold" data-i18n="ROLE_ADMIN_TITLE">{% trans "Admin" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_ADMIN_LEAD">{% trans "Complete system control, user management, and system configuration." %}</p>
 
     <div class="row g-4">
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-user-shield fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Admin</h5>
-          <p class="text-muted small">Complete system control, user management, and system configuration.</p>
+          <div class="card-image mb-3"><img src="{{ MEDIA_URL }}regstrar.webp" alt="Registrar" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <h5 class="fw-bold" data-i18n="ROLE_REGISTRAR_TITLE">{% trans "Registrar" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_REGISTRAR_LEAD">{% trans "Student enrollment, academic records, and transcript management." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-clipboard-list fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Registrar</h5>
-          <p class="text-muted small">Student enrollment, academic records, and transcript management.</p>
+          <div class="card-image mb-3"><img src="{{ MEDIA_URL }}admin.webp" alt="Admin" class="img-fluid" style="width:100%;max-height:260px;object-fit:cover;border-radius:8px;" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
+          <h5 class="fw-bold" data-i18n="ROLE_ADMIN_TITLE">{% trans "Admin" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_ADMIN_LEAD">{% trans "Complete system control, user management, and system configuration." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-calculator fa-2x text-primary mb-3"></i>
-          <h5 class="fw-bold">Finance Officer</h5>
-          <p class="text-muted small">Fee management, payment processing, and financial reporting.</p>
+          <div class="card-image mb-3">
+            <img src="{{ MEDIA_URL }}finance_officer_promo.svg" alt="Finance Officer" class="img-fluid" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/>
+          </div>
+          <h5 class="fw-bold" data-i18n="ROLE_FINANCE_TITLE">{% trans "Finance Officer" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_FINANCE_LEAD">{% trans "Fee management, payment processing, and financial reporting." %}</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-chalkboard fa-2x text-primary mb-3"></i>
+          <div class="card-image mb-3"><img src="{{ MEDIA_URL }}teacher.webp" alt="Teacher" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
           <h5 class="fw-bold">Teacher</h5>
           <p class="text-muted small">Class management, grade entry, and performance reporting.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-user-friends fa-2x text-primary mb-3"></i>
+          <div class="card-image mb-3"><img src="{{ MEDIA_URL }}parent.webp" alt="Parent" class="img-fluid" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
           <h5 class="fw-bold">Parent</h5>
           <p class="text-muted small">View child progress, attendance, and fee status.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="role-card text-center h-100">
-          <i class="fas fa-user-graduate fa-2x text-primary mb-3"></i>
+          <div class="card-image mb-3"><img src="{{ MEDIA_URL }}student3.webp" alt="Student" class="img-fluid" onerror="this.onerror=null;this.src='{{ MEDIA_URL }}placeholder_feature.png'"/></div>
           <h5 class="fw-bold">Student</h5>
           <p class="text-muted small">Access courses, view grades, and interact with the AI advisor.</p>
         </div>
@@ -323,22 +380,22 @@
   <div class="container">
     <div class="row g-4">
       <div class="col-lg-6">
-        <div class="contact-card">
-          <h5 class="fw-bold">Contact Us</h5>
+          <h5 class="fw-bold" data-i18n="ROLE_TEACHER_TITLE">{% trans "Teacher" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_TEACHER_LEAD">{% trans "Class management, grade entry, and performance reporting." %}</p>
           <p class="text-muted">Get in touch with us for more information about our system or school.</p>
 
           <div class="mt-3">
             <div class="mb-3 p-3 bg-white rounded-3">
               <i class="fas fa-map-marker-alt text-primary me-2"></i>
-              <strong>Address</strong>
-              <div class="small text-muted">Ginba Junior School, Addis Ababa, Ethiopia</div>
+          <h5 class="fw-bold" data-i18n="ROLE_PARENT_TITLE">{% trans "Parent" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_PARENT_LEAD">{% trans "View child progress, attendance, and fee status." %}</p>
             </div>
             <div class="mb-3 p-3 bg-white rounded-3">
               <i class="fas fa-phone text-primary me-2"></i>
               <strong>Phone</strong>
               <div class="small text-muted">+251 911 123 456</div>
-            </div>
-            <div class="mb-3 p-3 bg-white rounded-3">
+          <h5 class="fw-bold" data-i18n="ROLE_STUDENT_TITLE">{% trans "Student" %}</h5>
+          <p class="text-muted small" data-i18n="ROLE_STUDENT_LEAD">{% trans "Access courses, view grades, and interact with the AI advisor." %}</p>
               <i class="fas fa-envelope text-primary me-2"></i>
               <strong>Email</strong>
               <div class="small text-muted">info@ginba.edu.et</div>
@@ -367,27 +424,27 @@
   <div class="container">
     <div class="row">
       <div class="col-md-4">
-        <h5 class="text-white">SIMS</h5>
-        <p class="small text-white-50">Empowering education through innovative technology solutions at Ginba Junior School.</p>
+        <h5 class="text-white" data-i18n="FOOTER_TITLE">{% trans "SIMS" %}</h5>
+        <p class="small text-white-50" data-i18n="FOOTER_LEAD">{% trans "Empowering education through innovative technology solutions at Ginba Junior School." %}</p>
       </div>
       <div class="col-md-4">
-        <h6 class="text-white">Quick Links</h6>
+        <h6 class="text-white" data-i18n="FOOTER_QUICK">{% trans "Quick Links" %}</h6>
         <ul class="list-unstyled small">
-          <li><a class="text-white-50" href="#">Home</a></li>
-          <li><a class="text-white-50" href="#features">Features</a></li>
-          <li><a class="text-white-50" href="#contact">Contact</a></li>
+          <li><a class="text-white-50" href="#" data-i18n="FOOTER_HOME">{% trans "Home" %}</a></li>
+          <li><a class="text-white-50" href="#features" data-i18n="FOOTER_FEATURES">{% trans "Features" %}</a></li>
+          <li><a class="text-white-50" href="#contact" data-i18n="FOOTER_CONTACT">{% trans "Contact" %}</a></li>
         </ul>
       </div>
       <div class="col-md-4">
-        <h6 class="text-white">User Access</h6>
+        <h6 class="text-white" data-i18n="FOOTER_ACCESS">{% trans "User Access" %}</h6>
         <ul class="list-unstyled small">
-          <li><a class="text-white-50" href="{% url 'login' %}">Student Login</a></li>
-          <li><a class="text-white-50" href="{% url 'login' %}">Teacher Login</a></li>
-          <li><a class="text-white-50" href="{% url 'login' %}">Parent Login</a></li>
+          <li><a class="text-white-50" href="{% url 'login' %}" data-i18n="FOOTER_STUDENT_LOGIN">{% trans "Student Login" %}</a></li>
+          <li><a class="text-white-50" href="{% url 'login' %}" data-i18n="FOOTER_TEACHER_LOGIN">{% trans "Teacher Login" %}</a></li>
+          <li><a class="text-white-50" href="{% url 'login' %}" data-i18n="FOOTER_PARENT_LOGIN">{% trans "Parent Login" %}</a></li>
         </ul>
       </div>
     </div>
-    <div class="text-center mt-4 small text-white-50">© 2024 Ginba Junior School. All rights reserved.</div>
+    <div class="text-center mt-4 small text-white-50" data-i18n="FOOTER_COPY">{% trans "© 2024 Ginba Junior School. All rights reserved." %}</div>
   </div>
 </footer>
 

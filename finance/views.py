@@ -12,6 +12,7 @@ except Exception:
     Course = None
 import csv
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 
 @finance_required
 def finance_dashboard(request):
@@ -101,14 +102,47 @@ def update_fee_policies(request):
             fee_structure.save()
             messages.success(request, 'Fee structure updated successfully!')
         
-        elif 'toggle' in request.POST:
+        # Toggle removed: registrar uses Increase/Decrease to change fee amounts
+        
+        # Support increase/decrease adjustments from the per-row adjustment form
+        if 'increase' in request.POST or 'decrease' in request.POST:
             fee_id = request.POST.get('fee_id')
             fee_structure = get_object_or_404(FeeStructure, id=fee_id)
-            fee_structure.is_active = not fee_structure.is_active
+            raw_amount = request.POST.get('adjust_amount', '0')
+            try:
+                amt = Decimal(raw_amount)
+            except (InvalidOperation, TypeError):
+                messages.error(request, 'Invalid adjustment amount.')
+                return redirect('update_fee_policies')
+
+            # Determine sign
+            if 'decrease' in request.POST:
+                delta = -amt
+            else:
+                delta = amt
+
+            # apply change to fee structure amount (never negative)
+            new_amount = (fee_structure.amount or Decimal('0')) + delta
+            if new_amount < 0:
+                new_amount = Decimal('0.00')
+
+            fee_structure.amount = new_amount
             fee_structure.save()
-            status = 'activated' if fee_structure.is_active else 'deactivated'
-            messages.success(request, f'Fee structure {status} successfully!')
-        
+
+            # Optionally apply to payments
+            apply_to_payments = request.POST.get('apply_to_payments') == '1'
+            if apply_to_payments:
+                # update payments for this fee structure (skip failed payments)
+                payments_qs = Payment.objects.filter(fee_structure=fee_structure).exclude(status='failed')
+                for p in payments_qs:
+                    p.amount_paid = (p.amount_paid or Decimal('0')) + delta
+                    if p.amount_paid < 0:
+                        p.amount_paid = Decimal('0.00')
+                    p.save()
+
+            messages.success(request, f'Fee "{fee_structure.name}" updated by {delta}. New amount: {fee_structure.amount}.')
+            return redirect('update_fee_policies')
+
         return redirect('update_fee_policies')
     
     context = {

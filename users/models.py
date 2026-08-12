@@ -62,6 +62,9 @@ class StudentProfile(models.Model):
     current_semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES, default='first')
     academic_year = models.CharField(max_length=9, default='2024-2025')
     enrollment_date = models.DateField(auto_now_add=True)
+    # Current available account balance for the student (used for payments)
+    # Default starting balance: 5000.00 bir
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=5000.00)
     # Home room teacher who manages this student's records
     homeroom = models.ForeignKey(
         User,
@@ -71,6 +74,10 @@ class StudentProfile(models.Model):
         limit_choices_to={'role': 'teacher'},
         related_name='homeroom_students'
     )
+    # Whether the student is repeating the current grade
+    is_repeating = models.BooleanField(default=False)
+    # Count of how many times the student has repeated
+    repeated_years = models.PositiveSmallIntegerField(default=0)
     
     def __str__(self):
         return f"Student: {self.user.get_full_name()} (Grade {self.grade_level})"
@@ -99,6 +106,8 @@ class RegistrarProfile(models.Model):
 class FinanceProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     finance_id = models.CharField(max_length=20, unique=True)
+    # School account managed by finance officer. Holds accumulated payments.
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
     def __str__(self):
         return f"Finance: {self.user.username}"
@@ -123,3 +132,25 @@ class StudentParent(models.Model):
     
     def __str__(self):
         return f"{self.parent.username} -> {self.student.username}"
+
+
+class StudentStatusLog(models.Model):
+    ACTION_CHOICES = [
+        ('promoted', 'Promoted'),
+        ('failed', 'Failed/Repeat'),
+    ]
+
+    student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='status_logs')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    performed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='performed_status_actions')
+    academic_year = models.CharField(max_length=9, blank=True)
+    previous_grade = models.PositiveSmallIntegerField(null=True, blank=True)
+    new_grade = models.PositiveSmallIntegerField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student.username} - {self.action} by {self.performed_by.username if self.performed_by else 'system'} on {self.created_at}"
