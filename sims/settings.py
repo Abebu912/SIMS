@@ -27,8 +27,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third party apps
-    'rest_framework',
-    'rest_framework_simplejwt',
+    # Optional third party apps (commented out when not installed)
+    # 'rest_framework',
+    # 'rest_framework_simplejwt',
     
     # Your apps
     'users',
@@ -267,12 +268,19 @@ except Exception:
 PARENT_CHILD_LINK_AUTO_APPROVE = True
 # For production, configure real email settings
 
-# REST Framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-}
+# REST Framework settings (enabled only if package is installed)
+try:
+    import rest_framework  # noqa: F401
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': (
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
+        ),
+    }
+except Exception:
+    # REST framework is not installed in this environment; provide a
+    # noop config so startup is not blocked. Install `djangorestframework`
+    # and `djangorestframework-simplejwt` to enable API features.
+    REST_FRAMEWORK = {}
 
 # Internationalization: enable multiple languages
 LANGUAGES = [

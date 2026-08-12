@@ -3,7 +3,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django.contrib.auth import views as auth_views
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+try:
+    from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+    _JWT_AVAILABLE = True
+except Exception:
+    # rest_framework_simplejwt not installed in this environment; skip JWT routes
+    _JWT_AVAILABLE = False
 from users.views import register_view
 from django.conf import settings
 from django.conf.urls.static import static
@@ -52,8 +57,11 @@ urlpatterns = [
     path('', include('users.urls')),
     path('', lambda request: redirect('users/dashboard/')),
     path("admin/", admin.site.urls),
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # JWT auth endpoints (enabled only if simplejwt is installed)
+    *( [
+        path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+        path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    ] if _JWT_AVAILABLE else [] ),
     path("api/users/", include("users.urls")),
     
     # ✅ KEEP THIS: API URLs for students (API ENDPOINTS)
